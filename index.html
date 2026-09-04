@@ -1,0 +1,1491 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HOUSE FILE v1.5 — 독립 생존 법률 시뮬레이터</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Gowun+Dodum&family=Jua&display=swap');
+
+:root{
+  --cream:#FFF7EA;
+  --paper:#FFFFFF;
+  --ink:#241F2B;
+  --ink-soft:#5B5566;
+  --money:#1E9E5A;
+  --money-dark:#127A43;
+  --danger:#FF4B4B;
+  --danger-dark:#C2222B;
+  --warn:#FFB100;
+  --accent:#6E5DF2;
+  --accent-soft:#EFEBFF;
+  --line:#E9E1D2;
+  --radius:18px;
+  --shadow: 0 6px 0 rgba(36,31,43,0.08);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--cream);
+  background-image:
+    radial-gradient(circle at 10% 10%, #FFF1DA 0, transparent 45%),
+    radial-gradient(circle at 90% 85%, #F1ECFF 0, transparent 40%);
+  color:var(--ink);
+  font-family:'Gowun Dodum','Pretendard','Noto Sans KR','Malgun Gothic','Apple SD Gothic Neo',sans-serif;
+  min-height:100vh;
+  display:flex;
+  justify-content:center;
+}
+#root{
+  width:100%;
+  max-width:520px;
+  min-height:100vh;
+  background:var(--paper);
+  box-shadow:0 0 60px rgba(36,31,43,0.08);
+  display:flex;
+  flex-direction:column;
+  position:relative;
+  overflow:hidden;
+}
+.brand-font{font-family:'Jua','Gowun Dodum','Pretendard','Noto Sans KR','Malgun Gothic','Apple SD Gothic Neo',sans-serif; font-weight:400;}
+.mono{font-family:'Consolas','D2Coding','Courier New',monospace;}
+
+/* ---------- HUD ---------- */
+#hud{
+  position:sticky; top:0; z-index:40;
+  background:var(--ink);
+  color:#fff;
+  padding:10px 16px 12px;
+  border-bottom:4px solid var(--warn);
+}
+#hud .row1{display:flex; justify-content:space-between; align-items:baseline;}
+#hud .stagechip{
+  font-size:11px; letter-spacing:.02em; color:#ffe9b0; opacity:.85;
+}
+#hud .cash{
+  font-family:'Gowun Dodum','Pretendard','Noto Sans KR','Malgun Gothic',sans-serif; font-weight:700; font-size:19px; font-variant-numeric:tabular-nums;
+  color:#7CFFB2;
+}
+#hud .row2{
+  display:flex; gap:10px; margin-top:6px; font-size:11px; opacity:.85;
+}
+#hud .pill{
+  background:rgba(255,255,255,.08); border-radius:999px; padding:3px 9px;
+  display:flex; gap:4px; align-items:center;
+}
+
+#hud .row1{display:grid; grid-template-columns:auto 1fr auto; gap:9px; align-items:center;}
+#hud .stagechip{justify-self:start;}
+#hud .cash{justify-self:end;}
+.hud-back{
+  border:1px solid rgba(255,255,255,.24);
+  background:rgba(255,255,255,.10);
+  color:#fff;
+  border-radius:10px;
+  padding:6px 9px;
+  font-family:inherit;
+  font-size:12px;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.hud-back:disabled{opacity:.28; cursor:default;}
+
+/* ---------- scene wrapper ---------- */
+#stage{
+  flex:1; padding:22px 20px 40px;
+  animation: fadeIn .35s ease;
+}
+@keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:none;} }
+
+h1.scene-title{
+  font-family:'Jua','Gowun Dodum','Pretendard','Noto Sans KR','Malgun Gothic','Apple SD Gothic Neo',sans-serif; font-weight:400; font-size:26px; margin:0 0 4px;
+  line-height:1.25;
+}
+p.scene-sub{ color:var(--ink-soft); font-size:14px; margin:0 0 18px;}
+p.body-text{ font-size:15.5px; line-height:1.75; margin:0 0 14px; }
+.narrator{
+  background:var(--accent-soft); border-left:4px solid var(--accent);
+  padding:12px 14px; border-radius:10px; font-size:14px; margin:14px 0;
+}
+.npc{
+  display:flex; gap:10px; align-items:flex-start; margin:14px 0;
+}
+.npc .avatar{
+  width:38px; height:38px; border-radius:12px; background:var(--warn);
+  display:flex; align-items:center; justify-content:center; font-size:18px;
+  flex-shrink:0;
+}
+.npc .bubble{
+  background:#FAF6EC; border:2px solid var(--line); border-radius:14px 14px 14px 2px;
+  padding:10px 13px; font-size:14.5px; line-height:1.6;
+}
+
+/* ---------- choices ---------- */
+.choices{display:flex; flex-direction:column; gap:10px; margin-top:18px;}
+button.choice{
+  text-align:left; border:2px solid var(--ink); background:var(--paper);
+  font-family:'Gowun Dodum','Pretendard','Noto Sans KR','Malgun Gothic','Apple SD Gothic Neo',sans-serif;
+  border-radius:14px; padding:13px 15px; font-size:15px; cursor:pointer;
+  box-shadow: var(--shadow); transition:transform .08s ease;
+  font-family:inherit; color:var(--ink);
+}
+button.choice:active{ transform:translateY(3px); box-shadow:none; }
+button.choice .tag{
+  display:inline-block; font-family:'Consolas','D2Coding','Courier New',monospace; font-size:11px;
+  background:var(--ink); color:#fff; border-radius:6px; padding:1px 6px; margin-right:8px;
+}
+button.primary{
+  border:none; background:var(--accent); color:#fff; border-radius:14px;
+  font-family:'Gowun Dodum','Pretendard','Noto Sans KR','Malgun Gothic','Apple SD Gothic Neo',sans-serif;
+  padding:14px 16px; font-size:15.5px; font-weight:700; cursor:pointer;
+  box-shadow:0 6px 0 #4A3BC4; width:100%; margin-top:16px; font-family:inherit;
+}
+button.primary:disabled{ background:#CFC9DA; box-shadow:0 6px 0 #B4ADC4; cursor:not-allowed; }
+button.primary:active:not(:disabled){ transform:translateY(3px); box-shadow:none; }
+button.ghost{
+  border:2px dashed var(--accent); background:#fff; color:var(--accent);
+  border-radius:14px; padding:10px 14px; font-size:13.5px; cursor:pointer;
+  width:100%; margin-top:10px; font-family:inherit; font-weight:700;
+}
+
+/* ---------- money card ---------- */
+.moneycard{
+  background:var(--ink); color:#fff; border-radius:16px; padding:16px 18px; margin:16px 0;
+}
+.moneycard .label{ font-size:12px; opacity:.7; }
+.moneycard .amount{ font-family:'Gowun Dodum','Pretendard','Noto Sans KR','Malgun Gothic',sans-serif; font-size:25px; font-weight:700; font-variant-numeric:tabular-nums; letter-spacing:-.02em; }
+.moneycard.loss{ background:linear-gradient(135deg,#3A1418,#2A0F13); }
+.moneycard.loss .amount{
+  color:#FF8E98;
+  font-family:'Jua','Gowun Dodum','Pretendard','Noto Sans KR','Malgun Gothic',sans-serif;
+  font-weight:400;
+  letter-spacing:-.02em;
+}
+.moneycard.gain .amount{ color:#7CFFB2; }
+
+/* ---------- registry (등기부) ---------- */
+.tabs{ display:flex; gap:6px; margin:14px 0 10px; }
+.tab{
+  flex:1; text-align:center; padding:10px 4px; border-radius:10px; border:2px solid var(--line);
+  font-size:13px; cursor:pointer; background:#fff; font-weight:700;
+}
+.tab.active{ border-color:var(--ink); background:var(--ink); color:#fff; }
+.tab.done::after{ content:' ✅'; }
+.panel{
+  border:2px solid var(--line); border-radius:14px; padding:14px; font-size:14px;
+}
+.check-item{
+  display:flex; gap:10px; align-items:flex-start; padding:9px 4px; border-bottom:1px dashed var(--line);
+  cursor:pointer;
+}
+.check-item:last-child{border-bottom:none;}
+.check-item .box{
+  width:20px; height:20px; border-radius:6px; border:2px solid var(--ink); flex-shrink:0; margin-top:1px;
+  display:flex; align-items:center; justify-content:center; font-size:13px;
+}
+.check-item.checked .box{ background:var(--money); border-color:var(--money-dark); color:#fff; }
+.check-item .txt b{display:block; font-size:13.5px;}
+.check-item .txt span{font-size:12px; color:var(--ink-soft);}
+
+/* ---------- bad end ---------- */
+.badend-screen{
+  background:#1B1420; color:#fff; margin:-22px -20px -40px; padding:40px 24px 34px;
+  min-height:100vh; text-align:center;
+}
+.badend-screen .skull{ font-size:44px; }
+.badend-screen h2{ font-family:'Jua','Gowun Dodum',sans-serif; color:#FF6363; font-size:24px; margin:6px 0 2px;}
+.badend-screen h3{ font-size:16px; color:#fff; opacity:.9; margin:0 0 20px; font-weight:400;}
+.reincarnate{
+  margin-top:22px; background:#FF6363; border:none; color:#1B1420; font-weight:700;
+  padding:14px 20px; border-radius:14px; font-size:15px; width:100%; font-family:inherit; cursor:pointer;
+}
+
+/* ---------- parallel world ---------- */
+.parallel-screen{
+  background:#12102A; color:#fff; margin:-22px -20px -40px; padding:40px 24px 34px; min-height:100vh; text-align:center;
+}
+.parallel-screen h2{font-family:'Jua','Gowun Dodum',sans-serif; color:#B7A9FF; font-size:22px;}
+
+
+/* ---------- good decision popup ---------- */
+.decision-overlay{
+  position:fixed; inset:0; z-index:120;
+  background:rgba(20,16,28,.64);
+  display:flex; align-items:center; justify-content:center;
+  padding:18px;
+  animation:fadeIn .18s ease;
+}
+.decision-card{
+  width:min(480px,100%);
+  max-height:88vh; overflow:auto;
+  background:#fff; color:var(--ink);
+  border-radius:22px; padding:22px;
+  box-shadow:0 24px 70px rgba(0,0,0,.28);
+  border:2px solid #DCD5FF;
+}
+.decision-card h2{
+  margin:0 0 6px; font-family:'Jua','Gowun Dodum',sans-serif; font-weight:400; font-size:27px;
+  color:var(--money-dark);
+}
+.decision-card .effect-box{
+  margin-top:14px; padding:14px;
+  background:#EFFAF4; border:2px solid #A9DFC4;
+  border-radius:14px; line-height:1.65; font-size:14px;
+}
+.decision-card .effect-box .label{
+  display:block; font-size:11px; font-weight:800;
+  color:var(--money-dark); letter-spacing:.04em; margin-bottom:3px;
+}
+.decision-card .whatif{
+  margin-top:16px; padding:15px;
+  background:#FFF1F2; border:2px solid #F2B4BA;
+  border-radius:14px;
+}
+.decision-card .whatif h3{
+  margin:0 0 9px; font-size:17px; color:var(--danger-dark);
+}
+.decision-card .whatif .lossline{
+  display:inline-block;
+  font-family:'Jua','Gowun Dodum','Pretendard','Noto Sans KR','Malgun Gothic',sans-serif;
+  font-weight:400;
+  font-size:24px;
+  line-height:1.25;
+  color:#B92332;
+  letter-spacing:-.02em;
+  background:#FFE3E6;
+  border-radius:12px;
+  padding:7px 11px;
+  margin:5px 0 10px;
+}
+.decision-card .whatif p{
+  margin:0; font-size:13.5px; line-height:1.7; color:#4A3F46;
+}
+.decision-card .decision-note{
+  margin-top:9px; font-size:11px; line-height:1.55; color:var(--ink-soft);
+}
+
+/* ---------- clear ---------- */
+.clear-screen{ text-align:center; }
+.trophy{ font-size:48px; }
+.stat-row{
+  display:flex; justify-content:space-between; padding:10px 2px; border-bottom:1px dashed var(--line); font-size:14px;
+}
+.stat-row b{font-family:'Gowun Dodum','Pretendard','Noto Sans KR','Malgun Gothic',sans-serif; font-variant-numeric:tabular-nums;}
+
+/* ---------- misc ---------- */
+.small-note{ font-size:11.5px; color:var(--ink-soft); margin-top:10px; line-height:1.5; }
+.concept-unlock{
+  background:#FFF6DA; border:2px solid var(--warn); border-radius:14px; padding:12px 14px; margin:16px 0; text-align:center;
+}
+.concept-unlock .lock{ font-size:12px; color:#9A7300; }
+.concept-unlock .name{ font-family:'Jua','Gowun Dodum',sans-serif; font-size:20px; margin-top:2px; }
+#restartFab{
+  position:fixed; bottom:16px; right:calc(50% - 250px + 16px); z-index:50;
+  background:var(--ink); color:#fff; border:none; border-radius:999px; width:42px; height:42px;
+  font-size:16px; cursor:pointer; opacity:.35;
+}
+@media (max-width:560px){ #restartFab{ right:16px; } }
+</style>
+</head>
+<body>
+<div id="root">
+  <div id="hud"></div>
+  <div id="stage"></div>
+</div>
+<button id="restartFab" title="교사용 초기화">↺</button>
+
+<script>
+/* =========================================================================
+   HOUSE FILE — 독립 생존 법률 시뮬레이터
+   엔진과 사건(SCENES) 데이터를 분리한 구조.
+   - LEGAL_CONFIG : 법령 수치처럼 개정될 수 있는 값 (담당 교사가 값만 교체 가능)
+   - CASES        : 사건별 고정 수치(매물가, 손실액 등)
+   - STATE        : 진행 상태, localStorage에 저장
+   ========================================================================= */
+
+const LEGAL_CONFIG = {
+  // 10%·40%·50%는 이 게임의 계약조건이며 법정비율이 아니다.
+  deposit: { downPaymentRatio: 0.10, midPaymentRatio: 0.40, balanceRatio: 0.50 }
+};
+
+const CASES = {
+  g1: {
+    playerCash: 320000000,
+    price: 300000000,
+    address: "서울시 해솔구 독립로 17, HOUSE 101동 703호 / 전용 59㎡",
+    wrongAddress: "101동 307호 / 전용 49㎡",
+    ownerListed: "김민수",
+    counterparty: "박현우 (본인 주장: 김민수의 동생)",
+    // 등기부에 보이는 채권최고액과 실제 피담보채무액은 다를 수 있다.
+    mortgageMaximum: 220000000,
+    mortgageDebt: 180000000,
+    newMortgageMaximum: 120000000,
+    newMortgageDebt: 100000000,
+    auctionExisting: { salePrice:260000000, priorityCosts:10000000 },
+    auctionNew: { salePrice:250000000, priorityCosts:10000000 }
+  }
+};
+
+const LISTINGS = {
+  a:{
+    name:'A · 역세권 구축',
+    price:300000000,
+    detail:'지하철 도보 5분 · 25년 차 아파트 · 12층 남향 · 2년 전 내부 리모델링 · 출퇴근은 편하지만 주차가 다소 혼잡함',
+    emoji:'🚇'
+  },
+  b:{
+    name:'B · 균형형 매물',
+    price:300000000,
+    detail:'지하철 도보 8분 · 15년 차 아파트 · 8층 남동향 · 수리 상태 양호 · 단지 관리와 주차가 무난함',
+    emoji:'🏢'
+  },
+  c:{
+    name:'C · 신축급 급매',
+    price:300000000,
+    detail:'지하철 도보 12분 · 8년 차 아파트 · 3층 · 내부 상태 신축급 · 조용하지만 상권이 조금 멂 · 매도인이 “오늘 계약”을 재촉함',
+    emoji:'✨'
+  }
+};
+
+const money = n => '₩' + Math.round(n).toLocaleString('ko-KR');
+const moneyShort = n => {
+  const sign = n < 0 ? '-' : '';
+  n = Math.abs(n);
+  return sign + '₩' + n.toLocaleString('ko-KR');
+};
+
+/* ---------------------------- STATE ---------------------------- */
+const DEFAULT_STATE = {
+  scene: 'title',
+  cash: CASES.g1.playerCash,
+  purchasePaid: 0,       // 매매대금으로 이미 지급했지만 아직 부동산으로 전환되지 않은 가치
+  propertyValue: 0,      // 소유권이전등기 완료 후 보유 부동산 가치
+  debt: 0,
+  actualLoss: 0,
+  avoidedLoss: 0,
+  multiverseLoss: 0,
+  badEnds: [],
+  seenParallel: [],
+  concepts: [],
+  reincarnations: 0,
+  payments: { deposit:false, interim:false, balance:false },
+  selectedListing: null,
+  checkpoints: {},
+  registryChecks: { title:false, owner:false, mortgage:false, recheck:false, finalTitle:false, finalOwner:false, finalMortgage:false },
+  registryTicks: {}
+};
+
+let BACK_STACK = loadBackStack();
+
+function loadBackStack(){
+  try{
+    const raw = localStorage.getItem('housefile_v1_5_back');
+    return raw ? JSON.parse(raw) : [];
+  }catch(e){ return []; }
+}
+function saveBackStack(){
+  try{
+    localStorage.setItem('housefile_v1_5_back', JSON.stringify(BACK_STACK.slice(-80)));
+  }catch(e){}
+}
+function navSnapshot(){
+  return structuredClone(STATE);
+}
+
+let STATE = loadState();
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem('housefile_v1_5');
+    if(raw){
+      const parsed = JSON.parse(raw);
+      return Object.assign(structuredClone(DEFAULT_STATE), parsed);
+    }
+  }catch(e){}
+  return structuredClone(DEFAULT_STATE);
+}
+function saveState(){
+  localStorage.setItem('housefile_v1_5', JSON.stringify(STATE));
+}
+function resetAll(){
+  if(!confirm('진행 상황을 모두 초기화할까요? (교사용 초기화)')) return;
+  localStorage.removeItem('housefile_v1_5');
+  localStorage.removeItem('housefile_v1_5_back');
+  BACK_STACK = [];
+  STATE = structuredClone(DEFAULT_STATE);
+  render();
+}
+document.getElementById('restartFab').onclick = resetAll;
+
+function netWorth(){
+  return STATE.cash + STATE.purchasePaid + STATE.propertyValue - STATE.debt;
+}
+function unlockConcept(name){
+  if(!STATE.concepts.includes(name)) STATE.concepts.push(name);
+}
+function addBadEnd(code){
+  if(!STATE.badEnds.includes(code)) STATE.badEnds.push(code);
+}
+function addParallel(code, avoided){
+  if(!STATE.seenParallel.includes(code)){
+    STATE.seenParallel.push(code);
+    STATE.avoidedLoss += avoided;
+    STATE.multiverseLoss += avoided;
+  }
+}
+function addSimulation(code, loss){
+  if(!STATE.seenParallel.includes(code)){
+    STATE.seenParallel.push(code);
+    STATE.multiverseLoss += loss;
+  }
+}
+function goTo(id, recordHistory=true){
+  if(recordHistory && id !== STATE.scene){
+    BACK_STACK.push(navSnapshot());
+    if(BACK_STACK.length > 80) BACK_STACK.shift();
+    saveBackStack();
+  }
+  STATE.scene = id;
+  saveState();
+  render();
+  window.scrollTo(0,0);
+}
+function goBack(){
+  if(!BACK_STACK.length) return;
+  const prev = BACK_STACK.pop();
+  saveBackStack();
+  STATE = structuredClone(prev);
+  saveState();
+  render();
+  window.scrollTo(0,0);
+}
+function returnToTitle(){
+  goTo('title');
+}
+function restartFromBeginning(){
+  if(!confirm('지금까지의 진행을 지우고 처음부터 다시 플레이할까요?')) return;
+  localStorage.removeItem('housefile_v1_5');
+  localStorage.removeItem('housefile_v1_5_back');
+  BACK_STACK = [];
+  STATE = structuredClone(DEFAULT_STATE);
+  saveState();
+  render();
+  window.scrollTo(0,0);
+}
+
+function applyPurchasePayment(kind, amount){
+  if(STATE.payments[kind]) return;
+  STATE.payments[kind] = true;
+  STATE.cash -= amount;
+  STATE.purchasePaid += amount;
+  saveState();
+}
+function completeRegistration(){
+  if(STATE.propertyValue > 0) return;
+  STATE.propertyValue = STATE.purchasePaid;
+  STATE.purchasePaid = 0;
+  saveState();
+}
+
+function setCheckpoint(id){
+  const snap = structuredClone(STATE);
+  snap.scene = id;
+  snap.checkpoints = {};
+  STATE.checkpoints[id] = snap;
+  saveState();
+}
+function reincarnate(checkpointId){
+  const snap = STATE.checkpoints[checkpointId];
+  if(!snap){
+    STATE.reincarnations++;
+    goTo(checkpointId);
+    return;
+  }
+  const meta = {
+    badEnds: [...STATE.badEnds],
+    seenParallel: [...STATE.seenParallel],
+    concepts: [...STATE.concepts],
+    avoidedLoss: STATE.avoidedLoss,
+    multiverseLoss: STATE.multiverseLoss,
+    reincarnations: STATE.reincarnations + 1,
+    checkpoints: structuredClone(STATE.checkpoints)
+  };
+  STATE = structuredClone(snap);
+  STATE.badEnds = Array.from(new Set([...STATE.badEnds, ...meta.badEnds]));
+  STATE.seenParallel = Array.from(new Set([...STATE.seenParallel, ...meta.seenParallel]));
+  STATE.concepts = Array.from(new Set([...STATE.concepts, ...meta.concepts]));
+  STATE.avoidedLoss = meta.avoidedLoss;
+  STATE.multiverseLoss = meta.multiverseLoss;
+  STATE.reincarnations = meta.reincarnations;
+  STATE.checkpoints = meta.checkpoints;
+  STATE.scene = checkpointId;
+  saveState(); render(); window.scrollTo(0,0);
+}
+
+/* ============================ HUD ============================ */
+function renderHUD(){
+  const stageLabel = SCENES[STATE.scene] && SCENES[STATE.scene].hudLabel
+    ? SCENES[STATE.scene].hudLabel : '';
+  document.getElementById('hud').innerHTML = `
+    <div class="row1">
+      <button class="hud-back" id="hudBackBtn" ${STATE.scene==='title' || !BACK_STACK.length ? 'disabled' : ''}>← 이전</button>
+      <span class="stagechip">📍 ${stageLabel}</span>
+      <span class="cash">현금 ${money(STATE.cash)}</span>
+    </div>
+    <div class="row2">
+      <span class="pill">🏦 순자산 ${moneyShort(netWorth())}</span>
+      <span class="pill">🏠 ${STATE.propertyValue ? moneyShort(STATE.propertyValue) : '미취득'}</span>
+      <span class="pill">☠ ${STATE.badEnds.length}</span>
+      <span class="pill">🪞 ${moneyShort(STATE.avoidedLoss)}</span>
+      <span class="pill">♻ ${STATE.reincarnations}회</span>
+    </div>`;
+  const backBtn = document.getElementById('hudBackBtn');
+  if(backBtn && !backBtn.disabled) backBtn.onclick = goBack;
+}
+
+/* ============================ SCENES =========================== */
+/* 각 scene은 render(container) 함수를 가진다. 사건 데이터는 위 CASES/LEGAL_CONFIG에서 가져온다. */
+
+const SCENES = {};
+
+/* ---------- 타이틀 ---------- */
+SCENES.title = { hudLabel:'START', render(el){
+  el.innerHTML = `
+    <div style="text-align:center; padding-top:30px;">
+      <div style="font-size:52px;">🏚️</div>
+      <h1 class="scene-title" style="font-size:32px;">HOUSE FILE</h1>
+      <p class="scene-sub">독립 생존 법률 시뮬레이터</p>
+      <p class="body-text" style="text-align:left; margin-top:26px;">
+        사회생활 10년. 월급날마다 아끼고, 적금이 끝날 때마다 다시 묶고,
+        여행과 소비도 여러 번 미뤄서 모은 돈이 있습니다.
+        <b>지금 가진 ${money(CASES.g1.playerCash)}이 사실상 당신의 전재산입니다.</b><br><br>
+        이제 그 돈의 대부분을 첫 집 한 채에 넣으려 합니다.
+        <b>선택이 틀리면 내 인생 10년치 돈이 실제로 줄어듭니다.</b>
+        안전한 선택을 할 때까지 이야기는 앞으로 나아가지 않습니다.
+      </p>
+    </div>
+    <div class="small-note" style="margin-top:16px;">법적 기준: 민법 제185조·제186조·제565조·제568조 및 교과서 내용. 손실액·경매가격은 학습을 위한 가상 사건 설정입니다.</div>
+    <button class="primary" id="startBtn">🏡 TRAINING 시작 — 권리를 구분하라</button>
+  `;
+  el.querySelector('#startBtn').onclick = ()=> goTo('t01');
+}};
+
+/* ================= TRAINING ================= */
+SCENES.t01 = { hudLabel:'TRAINING 1/5', render(el){
+  el.innerHTML = sceneHeader('T-01', '이건 무슨 권리?') + `
+    <div class="narrator">💬 친구에게 100,000원을 빌려줬다.</div>
+    <div class="choices">
+      <button class="choice" data-v="wrong">🏠 물권 — 물건을 직접 지배하는 권리</button>
+      <button class="choice" data-v="right">🤝 채권 — 특정인에게 행위를 요구하는 권리</button>
+    </div>`;
+  bindChoiceButtons(el, (v)=>{
+    if(v==='right'){
+      unlockConcept('채권');
+      showGoodDecision(el,{
+        effect:'친구에게 10만 원을 갚으라고 요구하는 <b>채권</b>을 정확히 구분했습니다.',
+        lossText:'TRAINING — 직접 금전 손실 없음',
+        story:'채권과 물권을 혼동하면 뒤의 부동산 매매에서 “계약만 했는데 이미 소유권을 취득했다”고 오판할 수 있습니다.',
+        parallelCode:'GOOD-T01',
+        note:'훈련 단계의 평행세계는 개념 오류가 실제 거래 판단으로 이어지는 위험을 보여줍니다.'
+      },()=>goTo('t02'));
+    } else {
+      toastAndGo(el, '❌ 물건 자체를 지배하는 게 아니라, 사람에게 돈을 갚으라고 요구하는 권리예요.', 't01');
+    }
+  });
+}};
+
+SCENES.t02 = { hudLabel:'TRAINING 2/5', render(el){
+  el.innerHTML = sceneHeader('T-02', '이건 무슨 권리?') + `
+    <div class="narrator">💬 내 스마트폰을 내가 소유하고 있다.</div>
+    <div class="choices">
+      <button class="choice" data-v="right">📱 물권 — 물건을 직접 지배하는 권리</button>
+      <button class="choice" data-v="wrong">🤝 채권 — 특정인에게 행위를 요구하는 권리</button>
+    </div>`;
+  bindChoiceButtons(el, (v)=>{
+    if(v==='right'){
+      unlockConcept('물권');
+      showGoodDecision(el,{
+        effect:'스마트폰처럼 물건 자체를 직접 지배하는 권리를 <b>물권</b>으로 정확히 판단했습니다.',
+        lossText:'TRAINING — 직접 금전 손실 없음',
+        story:'물권과 채권을 구분하지 못하면 부동산 계약과 소유권 이전의 시점을 혼동하게 됩니다.',
+        parallelCode:'GOOD-T02'
+      },()=>goTo('t03'));
+    } else {
+      toastAndGo(el, '❌ 다른 사람에게 뭘 요구하는 게 아니라 내가 물건 자체를 지배하고 있죠.', 't02');
+    }
+  });
+}};
+
+SCENES.t03 = { hudLabel:'TRAINING 3/5', render(el){
+  el.innerHTML = sceneHeader('T-03', '소유권 = ?') + `
+    <p class="body-text">소유권은 세 가지 힘의 합입니다. 맞는 조합을 고르세요.</p>
+    <div class="choices">
+      <button class="choice" data-v="wrong">사용 + 처분</button>
+      <button class="choice" data-v="right">사용 + 수익 + 처분</button>
+      <button class="choice" data-v="wrong">점유 + 수익</button>
+    </div>`;
+  bindChoiceButtons(el, (v)=>{
+    if(v==='right'){
+      unlockConcept('소유권(사용·수익·처분)');
+      showGoodDecision(el,{
+        effect:'소유권의 핵심인 <b>사용·수익·처분</b>을 모두 확인했습니다. 법률도감에 등록됩니다.',
+        lossText:'TRAINING — 직접 금전 손실 없음',
+        story:'소유권의 의미를 불완전하게 이해하면 뒤에서 “누가 법적으로 집을 지배하고 처분할 수 있는가”를 판단하기 어렵습니다.',
+        parallelCode:'GOOD-T03'
+      },()=>goTo('t04'));
+    } else {
+      toastAndGo(el, '❌ 세 가지가 모두 있어야 완전한 소유권이에요.', 't03');
+    }
+  });
+}};
+
+SCENES.t04 = { hudLabel:'TRAINING 4/5', render(el){
+  el.innerHTML = sceneHeader('T-04', '동산 vs 부동산') + `
+    <p class="body-text"><b>아파트</b>는 동산일까요, 부동산일까요?</p>
+    <div class="choices">
+      <button class="choice" data-v="wrong">동산 — 옮길 수 있는 물건</button>
+      <button class="choice" data-v="right">부동산 — 토지와 그 정착물</button>
+    </div>`;
+  bindChoiceButtons(el, (v)=>{
+    if(v==='right'){
+      unlockConcept('동산·부동산 구분');
+      showGoodDecision(el,{
+        effect:'아파트를 <b>부동산</b>으로 구분했습니다. 이제 왜 권리관계를 등기로 공시하는지 연결할 수 있습니다.',
+        lossText:'TRAINING — 직접 금전 손실 없음',
+        story:'부동산의 특성과 등기의 필요성을 놓치면, 대금을 모두 지급하고도 소유권이전등기를 미루는 치명적 실수로 이어질 수 있습니다.',
+        parallelCode:'GOOD-T04'
+      },()=>goTo('t05'));
+    } else {
+      toastAndGo(el, '❌ 아파트는 토지에 정착된 건물이라 부동산입니다.', 't04');
+    }
+  });
+}};
+
+SCENES.t05 = { hudLabel:'TRAINING 5/5', render(el){
+  el.innerHTML = sceneHeader('T-05', '물권 지도') + `
+    <div class="panel mono" style="font-size:12.5px; line-height:1.9; white-space:pre;">물권
+├ 점유권
+└ 본권
+   ├ 소유권
+   ├ 용익물권 (지상권·지역권·전세권)
+   └ 담보물권 (유치권·질권·저당권)</div>
+    <p class="small-note">📌 물권법정주의: 물권은 <b>법률 또는 관습법</b>에 의하는 외에는 임의로 창설할 수 없습니다(민법 제185조).</p>
+    <button class="primary" id="next">🔓 물권법정주의 — 도감에 등록하고 GAME 1로</button>`;
+  el.querySelector('#next').onclick = ()=>{
+    unlockConcept('물권법정주의');
+    goTo('g1_00');
+  };
+}};
+
+/* ================= GAME 1 : BUY THE HOUSE ================= */
+
+SCENES.g1_00 = { hudLabel:'GAME 1', render(el){
+  el.innerHTML = `
+    <div style="text-align:center;">
+      <div style="font-size:44px;">🏡</div>
+      <h1 class="scene-title">BUY THE HOUSE</h1>
+      <p class="scene-sub">3억짜리 첫 집에서 살아남아라</p>
+    </div>
+    <div class="moneycard"><div class="label">거래 가능 자금</div><div class="amount">${money(CASES.g1.playerCash)}</div></div>
+    <p class="body-text"><b>사회생활 10년.</b> 적금, 상여금, 아껴둔 생활비까지 모아 만든
+    <b>${money(CASES.g1.playerCash)}</b>이 현재 당신의 모든 초기 자산이자 전재산입니다.</p>
+    <div class="panel" style="background:#FFF8E8; border-color:#F0D9A8;">
+      <b>📦 LIFE SAVINGS</b><br>
+      모은 기간: <b>10년</b><br>
+      전재산: <b>${money(CASES.g1.playerCash)}</b><br>
+      살 집의 가격: <b>${money(CASES.g1.price)}</b><br>
+      거래에 들어가는 비율: <b>${Math.round(CASES.g1.price/CASES.g1.playerCash*100)}%</b><br><br>
+      <span style="color:var(--danger-dark);"><b>이 집 한 채에 내 인생 10년치가 걸렸습니다.</b></span>
+    </div>
+    <p class="body-text" style="margin-top:14px;">목표는 이 돈을 지키면서 <b>${money(CASES.g1.price)}</b>짜리 집을 안전하게 취득해
+    등기부 갑구에 내 이름을 올리는 것입니다.</p>
+    <button class="primary" id="next">매물 보러 가기</button>`;
+  el.querySelector('#next').onclick = ()=>{ setCheckpoint('g1_01'); goTo('g1_01'); };
+}};
+
+SCENES.g1_01 = { hudLabel:'G1 · 매물 탐색', render(el){
+  el.innerHTML = sceneHeader('G1-01', '어느 집에 내 10년을 걸까?') + `
+    <p class="body-text">세 집 모두 최종 협의가격은 <b>${money(CASES.g1.price)}</b>입니다.
+    위치·연식·상태가 다르지만, 어느 집을 골라도 <b>계약 전 권리관계 확인</b>은 똑같이 필요합니다.</p>
+    <div class="choices">
+      ${Object.entries(LISTINGS).map(([key,x])=>`
+        <button class="choice" data-v="${key}">
+          <span class="tag">${key.toUpperCase()}</span>${x.emoji} <b>${x.name}</b>
+          <div style="font-size:13px; color:var(--ink-soft); line-height:1.65; margin-top:7px;">${x.detail}</div>
+          <div style="font-size:13px; margin-top:5px;"><b>${money(x.price)}</b></div>
+        </button>`).join('')}
+    </div>
+    <p class="small-note">※ 이 단계에는 정답이 없습니다. 집을 고르는 기준과 법적으로 안전하게 거래하는 절차는 다른 문제입니다.</p>`;
+  bindChoiceButtons(el, (v)=>{
+    STATE.selectedListing = v;
+    saveState();
+    const picked = LISTINGS[v];
+    showGoodDecision(el,{
+      title:'🏠 이 집을 골랐어요!',
+      effect:`<b>${picked.name}</b>을 선택했습니다. 이제 가격·위치·인테리어보다 먼저 <b>이 집의 실제 권리관계</b>를 확인해야 합니다.`,
+      lossText:'아직 손실 없음 — 이제부터가 진짜 거래',
+      story:`매물 설명이 마음에 든다는 이유만으로 바로 계약금을 보내면, 소유자·대리권·근저당권을 확인하지 못한 채 ${money(30000000)}을 먼저 내놓게 됩니다.`,
+      note:'집 선택에는 정답이 없지만, 계약 전 확인절차에는 반드시 지켜야 할 순서가 있습니다.',
+      buttonText:'선택한 집의 권리관계 확인하러 가기'
+    },()=>{ setCheckpoint('g1_02'); goTo('g1_02'); });
+  });
+}};
+
+SCENES.g1_02 = { hudLabel:'G1 · 계약금 유혹', render(el){
+  const picked = LISTINGS[STATE.selectedListing || 'b'];
+  el.innerHTML = sceneHeader('G1-02', '첫 번째 유혹') +
+    `<div class="panel" style="margin:12px 0; background:#FAF8FF;"><b>${picked.emoji} 선택한 매물 · ${picked.name}</b><br><span style="font-size:12.5px; color:var(--ink-soft);">${picked.detail}</span></div>` +
+    npc('🧑‍💼', '집 좋죠? 다른 분도 보고 있어서 일단 계약금부터 보내시면 됩니다.') + `
+    <div class="choices">
+      <button class="choice" data-v="a"><span class="tag">A</span>${money(30000000)} 바로 송금한다</button>
+      <button class="choice" data-v="b"><span class="tag">B</span>등기 사항 전부 증명서부터 확인한다</button>
+      <button class="choice" data-v="c"><span class="tag">C</span>중개인이 알아서 했겠지, 그냥 믿는다</button>
+    </div>`;
+  bindChoiceButtons(el, (v)=>{
+    if(v==='b'){
+      unlockConcept('등기 사항 전부 증명서(등기부)');
+      setCheckpoint('g1_03');
+      showGoodDecision(el,{
+        effect:`계약금을 보내기 전에 <b>등기부부터 확인</b>하기로 했습니다. ${money(30000000)}을 송금하기 전 소유자·권리부담을 검토할 기회를 확보합니다.`,
+        loss:25000000,
+        story:`확인 없이 계약금을 보냈다면 적법한 대리권이 없는 상대방과 거래해 ${money(30000000)} 중 ${money(5000000)}만 회수하고 <b>${money(25000000)}</b>을 잃는 평행세계가 발생합니다.`,
+        parallelCode:'PW-BE02',
+        note:'손실액은 이 교육용 사건의 설정값입니다.'
+      },()=>goTo('g1_03'));
+    } else {
+      renderBadEnd(el, {
+        code:'BE00', title:'등기부보다 송금이 빨랐습니다',
+        story:`권리관계를 확인하지 않고 계약금 ${money(30000000)}을 먼저 보냈습니다. 계약 상대방에게 적법한 대리권이 없다는 사실이 뒤늦게 드러났고, 가해자 재산에서 ${money(5000000)}만 회수했습니다.`,
+        loss:25000000
+      }, 'g1_02');
+    }
+  });
+}};
+
+SCENES.g1_02_parallel = { hudLabel:'G1 · 평행세계', render(el){
+  el.innerHTML = `
+    <div class="parallel-screen">
+      <div style="font-size:36px;">🪞</div>
+      <h2>IF YOU DIDN'T...</h2>
+      <p style="opacity:.85; font-size:14px; margin-bottom:18px;">만약 확인 없이 3천만 원을 바로 보냈다면?</p>
+      <div class="moneycard loss" style="text-align:left;">
+        <div class="label">등기부 확인 없이 계약금 지급 → 무권대리·권리관계 분쟁 → 일부만 회수</div>
+        <div class="amount">- ${money(25000000)} 예상 손실</div>
+      </div>
+      <p style="font-size:12.5px; opacity:.7;">이 손해액은 실제 법정 정액이 아니라 게임 사건 설정값입니다.</p>
+      <button class="reincarnate" id="back">현실 세계로 복귀 →</button>
+    </div>`;
+  el.querySelector('#back').onclick = ()=>{
+    addParallel('PW-G1-02', 25000000);
+    goTo('g1_03');
+  };
+}};
+
+/* ----- 등기부 수사 (표제부/갑구/을구) ----- */
+const REGISTRY_TABS = {
+  title: {
+    label:'표제부', icon:'📐',
+    items:[
+      {id:'addr', b:'주소·동·호수', s:'서울시 해솔구 독립로 17 / 101동 703호'},
+      {id:'area', b:'전용면적', s:'59㎡'},
+      {id:'struct', b:'구조·용도', s:'철근콘크리트 공동주택'}
+    ],
+    question:'이 등기부가 내가 본 바로 그 부동산인가?',
+    badend:{code:'BE01', title:'집은 봤는데, 계약할 집은 안 봤습니다',
+      story:`계약서 목적물은 <b>${CASES.g1.wrongAddress}</b>였지만 학생이 본 집은 <b>${CASES.g1.address.split('/')[1].trim()}</b>였습니다. 계약금 ${money(30000000)}을 지급한 뒤 분쟁 끝에 ${money(10000000)}만 회수했습니다.`,
+      loss:20000000}
+  },
+  owner: {
+    label:'갑구', icon:'🧑',
+    items:[
+      {id:'owner', b:'현재 소유자', s:`${CASES.g1.ownerListed}`},
+      {id:'history', b:'소유권 변동내역', s:'최근 이상 변동 없음'},
+      {id:'burden', b:'압류·가압류 등 부담', s:'없음'}
+    ],
+    question:'계약 상대방과 등기부상 소유자가 일치하는가?',
+    badend:{code:'BE02', title:'형이라고 다 형은 아니었습니다',
+      story:`계약 상대 ${CASES.g1.counterparty}의 대리권을 확인하지 않고 계약금 ${money(30000000)}을 송금했습니다. 진짜 소유자는 매도한 적이 없다고 했고, 사기 가해자에게서 ${money(5000000)}만 회수했습니다.`,
+      loss:25000000}
+  },
+  mortgage: {
+    label:'을구', icon:'🏦',
+    items:[
+      {id:'mtg', b:'근저당권자', s:'A은행'},
+      {id:'amt', b:'채권최고액', s:money(CASES.g1.mortgageMaximum)},
+      {id:'debt', b:'실제 채무액', s:'등기부만으로는 알 수 없음 → 상환예정액·말소서류 별도 확인'},
+      {id:'other', b:'전세권 등 기타 권리', s:'없음'}
+    ],
+    question:'근저당권의 채권최고액과 실제 채무액을 구분하고 말소 조건을 확인했는가?',
+    badend:{code:'BE03', title:'내 집인 줄 알았는데 은행이 먼저였습니다',
+      story:`을구의 채권최고액 ${money(CASES.g1.mortgageMaximum)}만 보고 실제 피담보채무와 말소를 확인하지 않았습니다. 실제 담보채무 ${money(CASES.g1.mortgageDebt)}이 남은 채 거래가 끝났고, 8개월 후 경매가 진행됐습니다. 낙찰가 ${money(CASES.g1.auctionExisting.salePrice)}에서 우선비용 ${money(CASES.g1.auctionExisting.priorityCosts)}과 은행 채무 ${money(CASES.g1.mortgageDebt)}이 먼저 빠져 ${money(70000000)}만 회수했습니다.`,
+      loss:230000000}
+  }
+};
+
+SCENES.g1_03 = { hudLabel:'G1 · 등기부 수사', render(el){
+  if(!el.dataset.tab) el.dataset.tab = 'title';
+  renderRegistry(el);
+}};
+
+function renderRegistry(el){
+  const cur = el.dataset.tab || 'title';
+  const tab = REGISTRY_TABS[cur];
+  const tabDone = tab.items.every(it=>STATE.registryTicks[cur+'_'+it.id]);
+  if(STATE.registryChecks[cur] !== tabDone){ STATE.registryChecks[cur] = tabDone; saveState(); }
+  const allDone = Object.keys(REGISTRY_TABS).every(k=>STATE.registryChecks[k]);
+  const tabHtml = Object.keys(REGISTRY_TABS).map(k=>{
+    const t = REGISTRY_TABS[k];
+    return `<div class="tab ${k===cur?'active':''} ${STATE.registryChecks[k]?'done':''}" data-tab="${k}">${t.icon} ${t.label}</div>`;
+  }).join('');
+
+  const itemsHtml = tab.items.map(it=>{
+    const key = cur+'_'+it.id;
+    const checked = !!STATE.registryTicks[key];
+    return `<div class="check-item ${checked?'checked':''}" data-key="${key}">
+      <div class="box">${checked?'✓':''}</div>
+      <div class="txt"><b>${it.b}</b><span>${it.s}</span></div>
+    </div>`;
+  }).join('');
+
+
+  el.innerHTML = sceneHeader('G1-03~06', '등기 사항 전부 증명서 수사') + `
+    <p class="body-text" style="font-size:13.5px;">항목을 눌러 하나씩 직접 확인하세요. 세 탭을 모두 확인해야 다음으로 넘어갑니다.</p>
+    <div class="tabs">${tabHtml}</div>
+    <div class="panel">
+      <p style="font-size:13px; color:var(--ink-soft); margin:0 0 8px;">${tab.question}</p>
+      ${itemsHtml}
+    </div>
+    ${tabDone ? `<button class="ghost" id="pw">🪞 만약 이 탭을 확인 안 했다면?</button>` : ''}
+    <button class="primary" id="nextAll" ${allDone?'':'disabled'}>${allDone?'✅ 등기부 확인 완료 — 계약서 작성하러 가기':'세 탭 모두 확인해야 진행됩니다'}</button>
+  `;
+
+  el.querySelectorAll('.tab').forEach(t=> t.onclick = ()=>{ el.dataset.tab = t.dataset.tab; renderRegistry(el); });
+  el.querySelectorAll('.check-item').forEach(ci=> ci.onclick = ()=>{
+    const wasDone = STATE.registryChecks[cur];
+    STATE.registryTicks[ci.dataset.key] = !STATE.registryTicks[ci.dataset.key];
+    const nowDone = tab.items.every(it=>STATE.registryTicks[cur+'_'+it.id]);
+    STATE.registryChecks[cur] = nowDone;
+    saveState();
+
+    if(!wasDone && nowDone){
+      const effects = {
+        title:'표제부의 주소·동·호수·면적·구조·용도를 모두 대조해 <b>내가 본 집과 계약할 부동산이 같은 목적물</b>임을 확인했습니다.',
+        owner:'갑구의 현재 소유자·소유권 변동·압류·가압류를 확인해 <b>누구와 계약해야 하는지와 소유권 위험</b>을 점검했습니다.',
+        mortgage:'을구의 근저당권자·채권최고액·실제 채무 확인 필요성·기타 권리를 확인해 <b>선순위 담보권 위험</b>을 점검했습니다.'
+      };
+      showGoodDecision(el,{
+        effect:effects[cur],
+        loss:tab.badend.loss,
+        story:tab.badend.story,
+        parallelCode:'PW-'+tab.badend.code,
+        note:'이 손실액은 각 교육용 사건의 설정값이며 실제 손해액은 사실관계에 따라 달라질 수 있습니다.',
+        buttonText:'등기부 계속 확인'
+      },()=>renderRegistry(el));
+    }else{
+      renderRegistry(el);
+    }
+  });
+  const pwBtn = el.querySelector('#pw');
+  if(pwBtn) pwBtn.onclick = ()=> showParallelBadend(el, tab.badend, ()=> renderRegistry(el));
+  const nb = el.querySelector('#nextAll');
+  if(nb && allDone) nb.onclick = ()=>{ unlockConcept('근저당권'); unlockConcept('갑구·을구·표제부'); setCheckpoint('g1_07'); goTo('g1_07'); };
+}
+
+function showParallelBadend(el, badend, onBack){
+  el.innerHTML = `
+    <div class="parallel-screen">
+      <div style="font-size:36px;">🪞</div>
+      <h2>IF YOU DIDN'T...</h2>
+      ${badend.loss>0 ? `<div class="moneycard loss" style="text-align:left; margin-top:16px;">
+        <div class="label">${badend.title}</div>
+        <div class="amount">- ${money(badend.loss)}</div>
+      </div>` : `<div class="panel" style="background:rgba(255,255,255,.08); border-color:rgba(255,255,255,.18); text-align:left; margin-top:16px;"><b>${badend.title}</b></div>`}
+      <p style="font-size:13.5px; line-height:1.7; opacity:.9; text-align:left;">${badend.story}</p>
+      <button class="reincarnate" id="back">현실 세계로 복귀 →</button>
+    </div>`;
+  el.querySelector('#back').onclick = ()=>{
+    addParallel('PW-'+badend.code, badend.loss);
+    onBack();
+  };
+}
+
+/* ----- 계약서 작성 ----- */
+SCENES.g1_07 = { hudLabel:'G1 · 계약서', render(el){
+  const p = CASES.g1.price;
+  const dp = p*LEGAL_CONFIG.deposit.downPaymentRatio;
+  const mp = p*LEGAL_CONFIG.deposit.midPaymentRatio;
+  const bal = p*LEGAL_CONFIG.deposit.balanceRatio;
+  el.innerHTML = sceneHeader('G1-07', '매매계약서') + `
+    <div class="panel" style="line-height:2;">
+      매도인: <b>김민수</b> (대리인 박현우 — 위임·대리권 확인 완료)<br>
+      매수인: <b>PLAYER</b><br>
+      목적 부동산: ${CASES.g1.address}<br>
+      총 매매대금: <b>${money(p)}</b><br>
+      계약금(10%): <b>${money(dp)}</b><br>
+      중도금(40%): <b>${money(mp)}</b><br>
+      잔금(50%): <b>${money(bal)}</b><br>
+      특약: <b>잔금 지급과 동시에 기존 근저당권 말소 및 소유권이전 서류 교부·처리를 진행한다.</b>
+    </div>
+    <p class="small-note">※ 10%·40%·50%는 이 게임에서 정한 계약 조건이며 법정 비율은 아닙니다.</p>
+    <button class="primary" id="next">계약 체결</button>`;
+  el.querySelector('#next').onclick = ()=> goTo('g1_08');
+}};
+
+SCENES.g1_08 = { hudLabel:'G1 · 계약 직후', render(el){
+  el.innerHTML = sceneHeader('G1-08', '🎉 계약 완료! 이제 집주인?') + `
+    <div class="choices">
+      <button class="choice" data-v="wrong">O — 계약했으니 이제 내 집이다</button>
+      <button class="choice" data-v="right">X — 아직 채권·채무 관계일 뿐이다</button>
+    </div>`;
+  bindChoiceButtons(el, (v)=>{
+    if(v==='right'){
+      unlockConcept('계약의 효력(채권·채무 발생)');
+      showGoodDecision(el,{
+        effect:'계약 체결로 매도인에게는 <b>소유권을 이전할 의무</b>, 매수인에게는 <b>대금을 지급할 의무</b>가 생겼습니다. 서로 그 이행을 요구할 채권을 가지지만, <b>소유권 자체는 아직 이전되지 않았습니다.</b>',
+        loss:260000000,
+        story:`이 점을 놓치고 “계약하거나 돈을 냈으니 이미 내 집”이라고 생각해 등기를 미루면, 이 게임의 최악 세계선에서는 제3자가 먼저 등기하고 매도인이 파산해 <b>${money(260000000)}</b>을 잃습니다.`,
+        parallelCode:'PW-BE05',
+        note:'이 손실은 뒤의 ‘등기를 미룬 세계선’과 연결됩니다.'
+      },()=>goTo('g1_09'));
+    } else {
+      toastAndGo(el, '❌ 계약만으로는 소유권이 이전되지 않습니다. 매도인에게는 이전 의무, 매수인에게는 지급 의무(채권·채무)만 생겨요.', 'g1_08');
+    }
+  });
+}};
+
+SCENES.g1_09 = { hudLabel:'G1 · 계약금 지급', render(el){
+  const dp = CASES.g1.price*LEGAL_CONFIG.deposit.downPaymentRatio;
+  el.innerHTML = sceneHeader('G1-09', '계약금 지급') + `
+    <p class="body-text">계약금 ${money(dp)}을 지급합니다.</p>
+    <div class="moneycard"><div class="label">지급 후 현금</div><div class="amount">${money(STATE.payments.deposit ? STATE.cash : STATE.cash-dp)}</div></div>
+    <p class="small-note">현금은 줄지만, 계약에 따라 이미 지급한 금액도 경제적 가치가 있으므로 정상 이행 중에는 순자산이 바로 줄어든 것으로 보지 않습니다.</p>
+    <button class="primary" id="next">계약금 지급</button>`;
+  el.querySelector('#next').onclick = ()=>{
+    applyPurchasePayment('deposit', dp);
+    setCheckpoint('g1_10'); goTo('g1_10');
+  };
+}};
+
+SCENES.g1_10 = { hudLabel:'G1 · 해약금 시뮬레이션', render(el){
+  el.innerHTML = sceneHeader('G1-10', '만약 지금 마음이 바뀐다면?') + npc('👩','2억 8천짜리가 새로 나왔어요. 아직 중도금은 지급하지 않았습니다.') + `
+    <div class="narrator">이 장면은 <b>법률 SIDE SIMULATION</b>입니다. <b>다른 약정이 없고 어느 일방도 아직 이행에 착수하지 않은 상황</b>을 전제로 합니다. 현재 본 계약은 유지한 채 해제 결과만 체험합니다.</div>
+    <div class="choices">
+      <button class="choice" data-v="a"><span class="tag">A</span>계약금을 전액 돌려달라고 하고 해제한다</button>
+      <button class="choice" data-v="b"><span class="tag">B</span>계약금 ${money(30000000)}을 포기하고 해제한다</button>
+      <button class="choice" data-v="c"><span class="tag">C</span>계약은 절대 해제할 수 없다</button>
+    </div>`;
+  bindChoiceButtons(el, (v)=>{
+    if(v==='b'){
+      unlockConcept('해약금 (민법 제565조)');
+      showGoodDecision(el,{
+        effect:`이행 착수 전 해약금 단계에서 매수인은 <b>계약금 ${money(30000000)}을 포기하고 해제</b>할 수 있음을 확인했습니다.`,
+        loss:0,
+        lossText:`💸 해제 시 실제 손실  ${money(30000000)}`,
+        story:`이 선택을 실제로 행사하면 계약은 끝낼 수 있지만 계약금 ${money(30000000)}은 돌아오지 않습니다. “취소 가능 = 손실 없음”으로 생각하면 자금계획에서 그대로 ${money(30000000)}의 구멍이 생깁니다.`,
+        parallelCode:'SIM-G1-BUYER-CANCEL-POPUP',
+        note:'현재 본 세계의 계약은 유지하고, 해제 결과만 SIDE SIMULATION으로 체험합니다.'
+      },()=>goTo('g1_10_result'));
+    } else {
+      const msg = v==='a' ? '❌ 해약금 방식이라면 매수인은 계약금을 돌려받는 것이 아니라 포기하고 해제합니다.' : '❌ 당사자 일방이 이행에 착수하기 전이라면 해약금 방식의 해제가 문제될 수 있습니다.';
+      toastAndGo(el, msg, 'g1_10');
+    }
+  });
+}};
+
+SCENES.g1_10_result = { hudLabel:'G1 · 해약금 시뮬레이션', render(el){
+  el.innerHTML = sceneHeader('G1-10', '매수인이 해제했다면') + `
+    <div class="parallel-screen" style="min-height:auto; margin:0; border-radius:16px; padding:24px 18px;">
+      <h2>🪞 SIDE WORLD</h2>
+      <div class="moneycard loss" style="text-align:left;">
+        <div class="label">계약금 포기</div><div class="amount">- ${money(30000000)}</div>
+      </div>
+      <p style="font-size:13px; line-height:1.7;">계약을 끝낼 수 있다는 것과 아무 손해 없이 빠져나올 수 있다는 것은 다릅니다.</p>
+    </div>
+    <button class="primary" id="next">반대로 매도인이 해제한다면?</button>`;
+  el.querySelector('#next').onclick = ()=>{ addSimulation('SIM-G1-BUYER-CANCEL',30000000); goTo('g1_11'); };
+}};
+
+SCENES.g1_11 = { hudLabel:'G1 · 해약금 시뮬레이션', render(el){
+  el.innerHTML = sceneHeader('G1-11', '이번에는 매도인이 마음이 바뀌었습니다') + `
+    <p class="body-text">다른 약정이 없고 어느 일방도 이행에 착수하기 전, 매도인이 계약금 ${money(30000000)}을 이미 받은 상태에서 해약금 방식으로 해제하려면 얼마를 상환해야 할까요?</p>
+    <div class="choices">
+      <button class="choice" data-v="wrong">${money(30000000)} — 받은 돈만 돌려준다</button>
+      <button class="choice" data-v="right">${money(60000000)} — 받은 계약금의 배액을 상환한다</button>
+    </div>`;
+  bindChoiceButtons(el, (v)=>{
+    if(v==='right'){
+      showGoodDecision(el,{
+        effect:`매도인이 해약금 방식으로 해제하려면 받은 ${money(30000000)}만 돌려주는 것이 아니라 <b>총 ${money(60000000)}을 상환</b>해야 함을 확인했습니다.`,
+        loss:0,
+        lossText:`💸 배액상환과의 차이  ${money(30000000)}`,
+        story:`매도인이 ${money(30000000)}만 돌려주면 배액상환과 비교해 <b>${money(30000000)}의 경제적 차이</b>가 생깁니다. 그 금액만 받고 계약이 끝났다고 오인하면 권리행사를 놓칠 수 있습니다.`,
+        parallelCode:'SIM-G1-SELLER-CANCEL',
+        note:'본 세계에서는 계약을 유지하고 중도금 단계로 이동합니다.'
+      },()=>goTo('g1_12'));
+    } else {
+      toastAndGo(el, '❌ 받은 계약금만 반환하는 것이 아니라 배액상환이 문제됩니다.', 'g1_11');
+    }
+  });
+}};
+
+SCENES.g1_12 = { hudLabel:'G1 · 중도금', render(el){
+  const mp = CASES.g1.price*LEGAL_CONFIG.deposit.midPaymentRatio;
+  el.innerHTML = sceneHeader('G1-12', '중도금 지급') + `
+    <p class="body-text">중도금 ${money(mp)}을 지급합니다. 지급이 끝나면 🔒 <b>PERFORMANCE STARTED</b> — 이행 착수의 대표적 장면입니다.</p>
+    <div class="moneycard"><div class="label">지급 후 현금</div><div class="amount">${money(STATE.payments.interim ? STATE.cash : STATE.cash-mp)}</div></div>
+    <p class="small-note">지급 후에도 정상 계약 이행 중인 ${money(STATE.purchasePaid + (STATE.payments.interim?0:mp))}은 사라진 돈이 아니라 계약 이행에 투입된 가치로 추적합니다.</p>
+    <button class="primary" id="next">중도금 지급</button>`;
+  el.querySelector('#next').onclick = ()=>{
+    applyPurchasePayment('interim', mp);
+    setCheckpoint('g1_13'); goTo('g1_13');
+  };
+}};
+
+SCENES.g1_13 = { hudLabel:'G1 · 중도금 이후 함정', render(el){
+  el.innerHTML = sceneHeader('G1-13', '"그냥 계약금 포기할게요"') + npc('😰','역시 취소하고 싶어요. 계약금 3천만 원 포기하면 되는 거죠?') + `
+    <div class="choices">
+      <button class="choice" data-v="wrong">네, 계약금만 포기하면 바로 취소 가능합니다</button>
+      <button class="choice" data-v="right">아니요 — 이미 이행에 착수해서 그 방식의 일방해제는 어렵습니다</button>
+    </div>`;
+  bindChoiceButtons(el, (v)=>{
+    if(v==='right'){
+      unlockConcept('이행 착수 이후의 해제 제한');
+      setCheckpoint('g1_14');
+      showGoodDecision(el,{
+        effect:'중도금 지급이 <b>이행에 착수한 대표적인 경우</b>임을 확인했습니다. 민법 제565조의 계약금 포기·배액상환 방식은 더 이상 사용할 수 없습니다. 다만 합의해제나 다른 법정·약정 해제사유는 별개입니다.',
+        loss:5000000,
+        story:`“계약금만 포기하면 끝”이라고 일방 통보하면 상대방이 동의하지 않아 분쟁이 생길 수 있습니다. 이 게임의 실패 세계선에서는 추가 합의·법률비용 <b>${money(5000000)}</b>이 발생합니다.`,
+        parallelCode:'PW-BE06',
+        note:'합의해제나 채무불이행 등 다른 해제사유는 별개의 문제입니다.'
+      },()=>goTo('g1_14'));
+    } else {
+      renderBadEnd(el, {
+        code:'BE06', title:'나갈 수 없는 계약',
+        story:`이미 계약금 ${money(30000000)}과 중도금 ${money(120000000)}을 지급한 뒤 "계약금만 포기하면 끝"이라고 일방 통보했습니다. 상대방이 동의하지 않아 분쟁이 발생했고, 이 교육용 사건에서는 추가 합의·법률비용 ${money(5000000)}이 들었습니다.`,
+        loss:5000000
+      }, 'g1_13');
+    }
+  });
+}};
+
+SCENES.g1_14 = { hudLabel:'G1 · 잔금 전 재확인', render(el){
+  el.innerHTML = sceneHeader('G1-14', '잔금 전날') + npc('🧑‍💼','계약할 때 등기부 보셨잖아요. 굳이 또 보실 필요 있나요?') + `
+    <div class="choices">
+      <button class="choice" data-v="wrong">안 본다 — 계약 때 이미 확인했다</button>
+      <button class="choice" data-v="right">최신 등기부를 다시 열람한다</button>
+    </div>`;
+  bindChoiceButtons(el, (v)=>{
+    if(v==='right'){
+      unlockConcept('잔금 전 재열람의 필요성');
+      STATE.registryChecks.recheck = true; saveState();
+      setCheckpoint('g1_15');
+      const recovered = CASES.g1.auctionNew.salePrice - CASES.g1.auctionNew.priorityCosts - CASES.g1.newMortgageDebt;
+      showGoodDecision(el,{
+        effect:'잔금 직전에 <b>최신 등기부를 재열람</b>했습니다. 계약 후 새로 생긴 B은행 근저당을 잔금 송금 전에 발견할 수 있게 됩니다.',
+        loss:CASES.g1.price-recovered,
+        story:`재열람하지 않았다면 B은행의 실제 담보채무 ${money(CASES.g1.newMortgageDebt)}이 남은 채 거래가 끝납니다. 이후 경매에서 ${money(recovered)}만 회수해 <b>${money(CASES.g1.price-recovered)}</b>을 잃는 사건이 발생합니다.`,
+        parallelCode:'PW-BE04',
+        note:'계약 전에 한 번 본 등기부가 잔금일까지 그대로라는 보장은 없습니다.'
+      },()=>goTo('g1_15'));
+    } else {
+      const recovered = CASES.g1.auctionNew.salePrice - CASES.g1.auctionNew.priorityCosts - CASES.g1.newMortgageDebt;
+      renderBadEnd(el, {
+        code:'BE04', title:'계약할 때 봤잖아요? 그래서 망했습니다',
+        story:`계약 뒤 새로 설정된 B은행 근저당을 보지 못한 채 잔금을 지급했습니다. 기존 A은행 근저당은 잔금일에 말소됐지만 B은행의 실제 담보채무 ${money(CASES.g1.newMortgageDebt)}은 남았습니다. 이후 경매 낙찰가 ${money(CASES.g1.auctionNew.salePrice)}에서 우선비용 ${money(CASES.g1.auctionNew.priorityCosts)}과 B은행 채무가 빠져 ${money(recovered)}만 회수했습니다.`,
+        loss:CASES.g1.price-recovered
+      }, 'g1_14');
+    }
+  });
+}};
+
+SCENES.g1_15 = { hudLabel:'G1 · 새 근저당 발견', render(el){
+  el.innerHTML = sceneHeader('G1-15', '새로운 근저당권 발견') + `
+    <div class="panel">
+      계약 후 B은행 근저당권이 새로 설정됐습니다.<br>
+      등기부상 <b>채권최고액 ${money(CASES.g1.newMortgageMaximum)}</b><br>
+      말소 협의 과정에서 확인한 실제 담보채무: <b>${money(CASES.g1.newMortgageDebt)}</b><br><br>
+      기존 A은행 근저당은 잔금일에 상환·말소하기로 이미 약정되어 있습니다.
+    </div>
+    <p class="small-note">📌 채권최고액은 실제 대출잔액과 같은 숫자가 아닙니다.</p>
+    <div class="choices">
+      <button class="choice" data-v="wrong">B은행 근저당은 그냥 두고 잔금을 지급한다</button>
+      <button class="choice" data-v="right">B은행 근저당도 말소되도록 처리 조건을 확인한 뒤 잔금을 진행한다</button>
+    </div>`;
+  bindChoiceButtons(el, (v)=>{
+    if(v==='right'){
+      unlockConcept('채권최고액 ≠ 실제 피담보채무액');
+      const recovered = CASES.g1.auctionNew.salePrice - CASES.g1.auctionNew.priorityCosts - CASES.g1.newMortgageDebt;
+      showGoodDecision(el,{
+        effect:`새 B은행 근저당의 <b>실제 채무액과 말소 조건</b>까지 확인했습니다. 잔금 지급과 동시에 담보권을 정리하도록 통제해 선순위 권리 위험을 제거합니다.`,
+        loss:CASES.g1.price-recovered,
+        story:`근저당을 보고도 그냥 두면 실제 담보채무 ${money(CASES.g1.newMortgageDebt)}이 우선변제됩니다. 이 게임의 경매에서는 ${money(recovered)}만 회수해 <b>${money(CASES.g1.price-recovered)}</b>의 손실이 발생합니다.`,
+        parallelCode:'PW-BE04',
+        note:`채권최고액 ${money(CASES.g1.newMortgageMaximum)}은 실제 대출잔액 ${money(CASES.g1.newMortgageDebt)}과 같은 숫자가 아닙니다.`
+      },()=>goTo('g1_16'));
+    } else {
+      const recovered = CASES.g1.auctionNew.salePrice - CASES.g1.auctionNew.priorityCosts - CASES.g1.newMortgageDebt;
+      renderBadEnd(el, {
+        code:'BE04', title:'새 근저당을 보고도 무시했습니다',
+        story:`B은행 근저당을 확인하고도 말소하지 않은 채 잔금을 지급했습니다. 이후 경매에서 실제 담보채무 ${money(CASES.g1.newMortgageDebt)}이 우선변제되어 ${money(recovered)}만 회수했습니다.`,
+        loss:CASES.g1.price-recovered
+      }, 'g1_15');
+    }
+  });
+}};
+
+
+SCENES.g1_16 = { hudLabel:'G1 · 잔금일', render(el){
+  const bal = CASES.g1.price*LEGAL_CONFIG.deposit.balanceRatio;
+  el.innerHTML = sceneHeader('G1-16', '잔금 DAY') + `
+    <p class="body-text">잔금 ${money(bal)}을 지급할 차례입니다. 최신 권리관계를 다시 확인한 뒤, <b>잔금 지급과 근저당 말소·소유권이전 서류 교부·부동산 인도를 같은 잔금 절차에서 맞춰 진행</b>해야 합니다.</p>
+    <div class="choices">
+      <button class="choice" data-v="wrong">서류는 나중에 받고 잔금부터 보낸다</button>
+      <button class="choice" data-v="right">최신 권리관계를 확인하고 잔금 지급과 이전·말소 이행을 함께 진행한다</button>
+    </div>`;
+  bindChoiceButtons(el, (v)=>{
+    if(v==='right'){
+      applyPurchasePayment('balance', bal);
+      setCheckpoint('g1_17');
+      showGoodDecision(el,{
+        effect:`최신 권리관계를 확인하고, 잔금 ${money(bal)} 지급과 <b>소유권이전 서류 교부·근저당 말소 처리·부동산 인도</b>가 함께 진행되도록 맞췄습니다. 쌍방의 중요한 의무를 같은 잔금 절차에서 이행하는 안전한 선택입니다.`,
+        loss:8000000,
+        story:`확인 없이 잔금부터 보낸 평행세계에서는 매도인이 말소·이전서류를 제때 준비하지 못해 ${money(bal)}이 두 달간 묶이고, 임시거주·추가대출·법률 대응 비용으로 이 게임 설정상 <b>${money(8000000)}</b>이 발생합니다.`,
+        parallelCode:'PW-BE08',
+        note:`잔금 ${money(bal)} 자체가 자동으로 손실되는 것은 아니며, 위 결과는 이 교육용 평행세계의 사건 설정입니다.`
+      },()=>goTo('g1_17'));
+    } else {
+      renderBadEnd(el,{
+        code:'BE08', title:'잔금부터 보내고 서류를 기다렸습니다',
+        story:`최신 권리관계와 이전·말소 서류를 확인하지 않고 잔금 ${money(bal)}을 먼저 보냈습니다. 매도인이 필요한 서류를 제때 준비하지 못해 자금이 두 달간 묶였고, 이 교육용 사건에서는 임시거주·추가대출·법률 대응 비용 ${money(8000000)}이 발생했습니다.`,
+        loss:8000000
+      },'g1_16');
+    }
+  });
+}};
+
+SCENES.g1_17 = { hudLabel:'G1 · 잔금 지급', render(el){
+  el.innerHTML = sceneHeader('G1-17', '잔금 지급 완료') + `
+    <div class="moneycard"><div class="label">남은 현금</div><div class="amount">${money(STATE.cash)}</div></div>
+    <div class="panel">계약 이행에 투입된 금액: <b>${money(STATE.purchasePaid)}</b><br>현재 계산상 순자산: <b>${money(netWorth())}</b></div>
+    <p class="body-text" style="margin-top:14px;">계약 ✅ 계약금 ✅ 중도금 ✅ 잔금 ✅ 인도 ✅ 등기 ❌</p>
+    <p class="body-text">이제 소유권을 취득했을까요?</p>
+    <div class="choices">
+      <button class="choice" data-v="wrong">O — 돈을 다 냈으니 내 집이다</button>
+      <button class="choice" data-v="right">X — 매매와 같은 법률행위로 인한 소유권 이전은 등기해야 효력이 생긴다 (민법 제186조)</button>
+    </div>`;
+  bindChoiceButtons(el, (v)=>{
+    if(v==='right'){
+      unlockConcept('부동산 물권 변동과 등기(민법 제186조)');
+      setCheckpoint('g1_18');
+      showGoodDecision(el,{
+        effect:'매매대금을 전부 지급하고 인도받았더라도 <b>매매로 인한 부동산 소유권 이전은 등기 전에는 완료되지 않았음</b>을 정확히 확인했습니다. 바로 이전등기 단계로 이동합니다.',
+        loss:260000000,
+        story:`이 점을 놓치고 “이미 내 집”이라고 생각해 등기를 미루면, 이 게임에서는 제3자가 먼저 등기하고 매도인이 파산해 ${money(300000000)} 중 ${money(40000000)}만 회수하여 <b>${money(260000000)}</b>을 잃습니다.`,
+        parallelCode:'PW-BE05',
+        note:'민법 제186조의 핵심을 실제 거래 결과와 연결한 세계선입니다.'
+      },()=>goTo('g1_18'));
+    } else {
+      toastAndGo(el, '❌ 매매와 같은 법률행위로 인한 부동산 물권변동은 등기를 해야 효력이 생깁니다. 아직 소유권이전은 완료되지 않았습니다.', 'g1_17_retry');
+    }
+  });
+}};
+SCENES.g1_17_retry = { hudLabel:'G1 · 잔금 지급', render(el){
+  el.innerHTML = sceneHeader('G1-17', '다시 생각해보기') + `
+    <div class="choices">
+      <button class="choice" data-v="right">X — 매매와 같은 법률행위로 인한 소유권 이전은 등기해야 효력이 생긴다 (민법 제186조)</button>
+    </div>`;
+  bindChoiceButtons(el, ()=>{
+    unlockConcept('부동산 물권 변동과 등기(민법 제186조)');
+    setCheckpoint('g1_18');
+    showGoodDecision(el,{
+      effect:'다시 판단해 <b>등기 전에는 소유권이전이 완료되지 않는다</b>는 점을 바로잡았습니다.',
+      loss:260000000,
+      story:`등기를 미루는 세계선에서는 제3자가 먼저 등기하고 매도인이 파산해 <b>${money(260000000)}</b>을 잃습니다.`,
+      parallelCode:'PW-BE05'
+    },()=>goTo('g1_18'));
+  });
+}};
+
+SCENES.g1_18 = { hudLabel:'G1 · 등기 신청', render(el){
+  el.innerHTML = sceneHeader('G1-18', '등기, 지금 안 하면?') + `
+    <p class="body-text">입주는 했지만 아직 소유권이전등기를 하지 않았습니다.</p>
+    <div class="choices">
+      <button class="choice" data-v="wrong">이미 살고 있으니 나중에 해도 된다</button>
+      <button class="choice" data-v="right">지금 바로 소유권이전등기를 신청한다</button>
+    </div>`;
+  bindChoiceButtons(el, (v)=>{
+    if(v==='right'){
+      showGoodDecision(el,{
+        effect:'소유권이전등기를 <b>즉시 신청</b>하기로 했습니다. 법률행위에 의한 부동산 소유권 이전을 완성할 수 있는 단계로 들어갑니다.',
+        loss:260000000,
+        story:`등기를 미루면 제3자가 먼저 등기하는 사건이 생길 수 있습니다. 이 게임의 실패 세계선에서는 매도인 파산 후 ${money(40000000)}만 회수해 <b>${money(260000000)}</b>을 잃습니다.`,
+        parallelCode:'PW-BE05'
+      },()=>goTo('g1_19'));
+    } else goTo('g1_18_badend');
+  });
+}};
+
+SCENES.g1_18_badend = { hudLabel:'☠ BAD END', render(el){
+  renderBadEnd(el, {
+    code:'BE05', title:'돈은 냈는데 집은 남의 것',
+    story:`등기를 미루는 사이 매도인이 같은 집을 제3자에게 다시 팔았고, 제3자가 먼저 소유권이전등기를 마쳤습니다. 매도인은 파산했고, 파산절차에서 ${money(40000000)}만 회수했습니다. 지급한 매매대금은 ${money(300000000)}였습니다.`,
+    loss:260000000
+  }, 'g1_18');
+}};
+
+SCENES.g1_19 = { hudLabel:'G1 · 등기 신청', render(el){
+  el.innerHTML = sceneHeader('G1-19', '소유권이전등기') + `
+    <div class="panel">거래 관련 신고 확인 → <b>취득세 등 관련 처리</b> → 매도인의 <b>부동산 매도용 인감증명서·등기필정보</b> 등 이전서류 확인 → 소유권이전등기 신청 → <b>등기 완료 여부 확인</b></div>
+    <p class="body-text" style="margin-top:14px;">신청서를 냈다고 바로 소유권이전이 완료된 것은 아닙니다. 이 게임은 세율·중개보수·법무비용 등 실제 거래비용 계산은 단순화를 위해 생략합니다.</p>
+    <button class="primary" id="next">등기 완료 통지 후 등기부 다시 발급</button>`;
+  el.querySelector('#next').onclick = ()=>{
+    completeRegistration();
+    setCheckpoint('g1_20'); goTo('g1_20');
+  };
+}};
+
+SCENES.g1_20 = { hudLabel:'G1 · FINAL AUDIT 1', render(el){
+  el.innerHTML = sceneHeader('G1-20', '등기 완료라고 했는데… 정말 끝?') + `
+    <p class="body-text">등기 완료 통지 후 직접 등기사항전부증명서를 다시 발급했습니다.</p>
+    <div class="panel" style="line-height:1.9;">
+      <b>표제부</b> — 101동 703호 / 59㎡ ✅<br>
+      <b>갑구</b> — 현재 소유자: PLAYER ✅<br>
+      <b>을구</b> — A은행 근저당권 / 채권최고액 ${money(CASES.g1.mortgageMaximum)} <span style="color:var(--danger); font-weight:700;">아직 남아 있음 ❌</span>
+    </div>
+    <div class="choices">
+      <button class="choice" data-v="finish">갑구에 내 이름이 있으니 끝! 집들이하러 간다</button>
+      <button class="choice" data-v="owner">갑구가 이상하다</button>
+      <button class="choice" data-v="mortgage">을구의 근저당권이 약정대로 말소되지 않았다</button>
+    </div>
+    <button class="ghost" id="other">🪞 최종 등기부에서 또 어떤 불일치를 찾을 수 있을까?</button>`;
+  bindChoiceButtons(el, (v)=>{
+    if(v==='mortgage'){
+      unlockConcept('등기 완료 후 최종 검수');
+      const recovered = CASES.g1.auctionExisting.salePrice - CASES.g1.auctionExisting.priorityCosts - CASES.g1.mortgageDebt;
+      showGoodDecision(el,{
+        effect:'갑구의 내 이름만 보고 끝내지 않고 <b>을구에 남아 있는 A은행 근저당권</b>까지 찾아냈습니다. 말소 오류를 바로잡을 기회를 확보했습니다.',
+        loss:CASES.g1.price-recovered,
+        story:`을구를 확인하지 않고 거래가 끝났다고 생각하면 실제 담보채무 ${money(CASES.g1.mortgageDebt)}이 남아 경매로 이어질 수 있습니다. 이 게임에서는 ${money(recovered)}만 회수해 <b>${money(CASES.g1.price-recovered)}</b>을 잃습니다.`,
+        parallelCode:'PW-BE07',
+        note:'등기 신청·완료 통지만 믿지 않고 실제 등기 결과를 다시 확인하는 단계입니다.'
+      },()=>goTo('g1_21'));
+    } else if(v==='finish'){
+      const recovered = CASES.g1.auctionExisting.salePrice - CASES.g1.auctionExisting.priorityCosts - CASES.g1.mortgageDebt;
+      renderBadEnd(el, {
+        code:'BE07', title:'내 이름만 보고 을구를 놓쳤습니다',
+        story:`갑구의 소유권이전은 완료됐지만 약정한 A은행 근저당 말소가 실제로 처리되지 않았습니다. 실제 담보채무 ${money(CASES.g1.mortgageDebt)}이 남아 있었고 이후 경매가 진행돼 ${money(recovered)}만 회수했습니다.`,
+        loss:CASES.g1.price-recovered
+      }, 'g1_20');
+    } else {
+      toastAndGo(el, '갑구 현재 소유자는 PLAYER로 정상 변경됐습니다. 이상한 부분은 다른 곳에 있습니다.', 'g1_20');
+    }
+  });
+  el.querySelector('#other').onclick = ()=>{
+    const other = {code:'BE-FINAL-OTHER', title:'최종 검수에서 찾을 수 있는 다른 오류', story:'표제부의 동·호수·면적이 계약 목적물과 다른 경우, 갑구 소유자가 아직 매도인으로 남아 있는 경우도 최종 확인에서 반드시 걸러야 합니다. 신청 접수증만 보고 끝내지 말고 실제 등기 결과를 다시 확인하세요.', loss:0};
+    showParallelBadend(el, other, ()=>goTo('g1_20'));
+  };
+}};
+
+SCENES.g1_21 = { hudLabel:'G1 · FINAL AUDIT 2', render(el){
+  el.innerHTML = sceneHeader('G1-21', '말소 처리 후 다시 발급했습니다') + `
+    <div class="panel" style="line-height:1.9;">
+      <b>표제부</b> — 101동 703호 / 59㎡<br>
+      <b>갑구</b> — 현재 소유자: PLAYER<br>
+      <b>을구</b> — 약정한 기존 근저당권 말소 완료
+    </div>
+    <p class="body-text" style="margin-top:14px;">세 영역을 마지막으로 직접 확인하세요.</p>
+    <div class="panel">
+      <div class="check-item ${STATE.registryChecks.finalTitle?'checked':''}" data-key="finalTitle"><div class="box">${STATE.registryChecks.finalTitle?'✓':''}</div><div class="txt"><b>표제부 — 내가 산 목적물과 일치</b></div></div>
+      <div class="check-item ${STATE.registryChecks.finalOwner?'checked':''}" data-key="finalOwner"><div class="box">${STATE.registryChecks.finalOwner?'✓':''}</div><div class="txt"><b>갑구 — 현재 소유자 PLAYER</b></div></div>
+      <div class="check-item ${STATE.registryChecks.finalMortgage?'checked':''}" data-key="finalMortgage"><div class="box">${STATE.registryChecks.finalMortgage?'✓':''}</div><div class="txt"><b>을구 — 말소 약정 권리 정리 완료</b></div></div>
+    </div>
+    <button class="primary" id="next" ${STATE.registryChecks.finalTitle&&STATE.registryChecks.finalOwner&&STATE.registryChecks.finalMortgage?'':'disabled'}>${STATE.registryChecks.finalTitle&&STATE.registryChecks.finalOwner&&STATE.registryChecks.finalMortgage?'🏆 PROPERTY SURVIVED':'세 영역을 모두 확인해야 합니다'}</button>`;
+  el.querySelectorAll('.check-item').forEach(ci=>ci.onclick=()=>{
+    STATE.registryChecks[ci.dataset.key]=true; saveState(); goTo('g1_21');
+  });
+  const nb=el.querySelector('#next');
+  if(!nb.disabled) nb.onclick=()=>{
+    const recovered = CASES.g1.auctionExisting.salePrice - CASES.g1.auctionExisting.priorityCosts - CASES.g1.mortgageDebt;
+    showGoodDecision(el,{
+      effect:'표제부·갑구·을구를 <b>최종본에서 모두 대조</b>했습니다. 목적물, 현재 소유자, 말소하기로 한 권리가 모두 일치해 이제 거래를 종료해도 됩니다.',
+      loss:CASES.g1.price-recovered,
+      story:`최종 등기부 확인을 생략하면 잘못된 목적물, 이전되지 않은 소유권, 남아 있는 담보권을 뒤늦게 발견할 수 있습니다. 이 게임의 가장 큰 최종검수 실패 세계선에서는 <b>${money(CASES.g1.price-recovered)}</b> 규모의 손실이 발생합니다.`,
+      parallelCode:'PW-BE07',
+      note:'최종 검수까지 끝나야 HOUSE FILE의 매매 절차가 완전히 종료됩니다.',
+      buttonText:'🏆 PROPERTY SURVIVED'
+    },()=>goTo('g1_22'));
+  };
+}};
+
+
+SCENES.g1_22 = { hudLabel:'G1 · BONUS CHECK', render(el){
+  el.innerHTML = sceneHeader('G1-22', '등기부를 믿으면 100% 안전할까?') + `
+    <div class="narrator">등기부의 표제부·갑구·을구를 모두 확인했습니다. 그렇다면 등기부만 믿으면 실제 권리관계가 언제나 완벽하게 보장될까요?</div>
+    <div class="choices">
+      <button class="choice" data-v="wrong">O — 등기부에 적혀 있으면 실제 권리관계와 달라도 항상 보호된다</button>
+      <button class="choice" data-v="right">X — 등기와 실제 권리관계가 다를 가능성까지 고려해야 한다</button>
+    </div>
+    <p class="small-note">📌 우리 법제는 부동산등기의 <b>공신력</b>을 일반적으로 인정하지 않습니다. 등기는 매우 중요한 공시수단이지만, 등기만 믿었다는 이유로 언제나 보호되는 것은 아닙니다.</p>`;
+  bindChoiceButtons(el,(v)=>{
+    if(v==='right'){
+      unlockConcept('부동산등기의 공신력 없음');
+      showGoodDecision(el,{
+        effect:'등기부는 부동산 권리관계를 확인하는 핵심 자료이지만 <b>실제 권리관계와의 불일치 가능성도 배제할 수 없음</b>을 확인했습니다.',
+        lossText:'개념 위험 — 등기부 확인만으로 모든 위험이 사라지는 것은 아님',
+        story:'등기부상 명의·권리만을 기계적으로 믿고 실제 거래당사자의 권한이나 필요한 서류, 권리의 실체를 전혀 확인하지 않으면 분쟁이 발생할 수 있습니다.',
+        parallelCode:'GOOD-G1-22',
+        note:'교과서도 등기부와 실제 권리관계가 다를 수 있으므로 실제 관계를 꼼꼼히 확인해야 한다고 안내합니다.',
+        buttonText:'최종 결과 보기'
+      },()=>goTo('g1_clear'));
+    }else{
+      toastAndGo(el,'❌ 부동산등기는 중요한 공시수단이지만 우리 법제에서 일반적인 공신력은 인정되지 않습니다. 실제 권리관계 확인도 필요합니다.','g1_22');
+    }
+  });
+}};
+
+SCENES.g1_clear = { hudLabel:'CLEAR', render(el){
+  const keywords = [
+    '채권·채무','물권','소유권','등기사항전부증명서',
+    '표제부','갑구','을구','근저당권','채권최고액',
+    '계약금','해약금','중도금','잔금','이행 착수','소유권이전등기',
+    '부동산 매도용 인감증명서','등기필정보','등기의 공신력 X'
+  ];
+  el.innerHTML = `
+    <div class="clear-screen">
+      <div class="trophy">🏆</div>
+      <h1 class="scene-title">PROPERTY SURVIVED</h1>
+      <p class="scene-sub">10년 동안 모은 전재산을 지키면서, 갑구의 소유자와 을구의 담보권까지 최종 확인했습니다.</p>
+    </div>
+    <div class="stat-row"><span>10년 동안 모은 시작 순자산</span><b>${money(CASES.g1.playerCash)}</b></div>
+    <div class="stat-row"><span>남은 현금</span><b>${money(STATE.cash)}</b></div>
+    <div class="stat-row"><span>취득 부동산 가치</span><b>${money(STATE.propertyValue)}</b></div>
+    <div class="stat-row"><span>최종 순자산</span><b>${money(netWorth())}</b></div>
+    <div class="stat-row"><span>현실 세계 실제 손실</span><b>${money(STATE.actualLoss)}</b></div>
+    <div class="stat-row"><span>평행세계에서 피한 손실</span><b>${money(STATE.avoidedLoss)}</b></div>
+    <div class="stat-row"><span>환생·시뮬레이션에서 본 총 손실</span><b>${money(STATE.multiverseLoss)}</b></div>
+    <div class="stat-row"><span>발견한 BAD END</span><b>${STATE.badEnds.length}개</b></div>
+    <div class="stat-row"><span>환생 횟수</span><b>${STATE.reincarnations}회</b></div>
+
+    <div class="concept-unlock" style="margin-top:20px; text-align:left;">
+      <div class="lock">📝 다음 학습시간에 다시 만날 게임 속 단어</div>
+      <div style="display:flex; flex-wrap:wrap; gap:7px; margin-top:10px;">
+        ${keywords.map(k=>`<span style="background:#fff; border:1px solid #E9D99A; border-radius:999px; padding:6px 9px; font-size:12px;">${k}</span>`).join('')}
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:16px; background:#F7F5FF; border-color:#D9D2FF; text-align:left;">
+      <b>📚 이 게임은 여기서 끝!</b><br>
+      다음 학습에서는 오늘 겪은 상황을 학습지에 다시 꺼내어
+      <b>“왜 그 선택이 위험했는지 / 어떤 권리가 생겼는지 / 등기부 어디를 확인했는지”</b>를 정리하고,
+      그 기록을 교과서 32~35쪽의 재산권·물권·채권·부동산 매매·등기 제도와 연결합니다.
+    </div>
+
+    <p class="small-note" style="text-align:center; margin-top:16px;">※ 매매대금 지급은 자산이 단순히 사라진 것이 아니라 최종적으로 부동산 자산으로 전환된 것으로 계산합니다.</p>
+
+    <div style="display:flex; gap:9px; margin-top:18px;">
+      <button class="ghost" style="margin-top:0;" onclick="returnToTitle()">⌂ 처음 화면으로</button>
+      <button class="primary" style="margin-top:0;" onclick="restartFromBeginning()">↺ 처음부터 다시 플레이</button>
+    </div>
+  `;
+}};
+
+/* =========================== 공통 유틸 =========================== */
+function sceneHeader(code, title){
+  return `<div style="font-size:11px; color:var(--ink-soft); font-family:'Gowun Dodum','Pretendard','Noto Sans KR','Malgun Gothic',sans-serif; font-weight:700;">${code}</div>
+          <h1 class="scene-title">${title}</h1>`;
+}
+function npc(emoji, text){
+  return `<div class="npc"><div class="avatar">${emoji}</div><div class="bubble">${text}</div></div>`;
+}
+function bindChoiceButtons(el, handler){
+  el.querySelectorAll('button.choice').forEach(b=>{
+    b.onclick = ()=> handler(b.dataset.v);
+  });
+}
+
+function showGoodDecision(el, options, onContinue){
+  const {
+    title='✅ 잘했어요!',
+    effect,
+    loss=0,
+    lossText='',
+    story='',
+    parallelCode='',
+    note='',
+    buttonText='계속 진행'
+  } = options;
+
+  if(parallelCode){
+    if(loss > 0) addParallel(parallelCode, loss);
+    else if(!STATE.seenParallel.includes(parallelCode)){
+      STATE.seenParallel.push(parallelCode);
+    }
+    saveState();
+  }
+
+  const overlay = document.createElement('div');
+  overlay.className = 'decision-overlay';
+  const lossDisplay = loss > 0
+    ? `💸 예상 손실  ${money(loss)}`
+    : (lossText || '직접 금전 손실은 없지만 권리·거래 상태를 잘못 판단할 수 있습니다.');
+
+  overlay.innerHTML = `
+    <div class="decision-card">
+      <h2>${title}</h2>
+      <div class="effect-box">
+        <span class="label">선택 효과</span>
+        ${effect}
+      </div>
+      <div class="whatif">
+        <h3>만약 확인하지 않았다면?</h3>
+        <div class="lossline">${lossDisplay}</div>
+        <p>${story}</p>
+      </div>
+      ${note ? `<div class="decision-note">${note}</div>` : ''}
+      <button class="primary" id="decisionContinue">${buttonText}</button>
+    </div>`;
+
+  document.body.appendChild(overlay);
+  overlay.querySelector('#decisionContinue').onclick = ()=>{
+    overlay.remove();
+    if(onContinue) onContinue();
+  };
+}
+
+function toastAndGo(el, msg, backTo){
+  el.innerHTML = `<div class="narrator" style="margin-top:0;">${msg}</div>
+    <button class="primary" id="retry">다시 선택하기</button>`;
+  el.querySelector('#retry').onclick = ()=> goTo(backTo);
+}
+function renderBadEnd(el, badend, checkpointId){
+  const firstDiscovery = !STATE.badEnds.includes(badend.code);
+  addBadEnd(badend.code);
+  if(firstDiscovery) STATE.multiverseLoss += badend.loss;
+  saveState();
+  el.innerHTML = `
+    <div class="badend-screen">
+      <div class="skull">☠</div>
+      <h2>BAD END — ${badend.code}</h2>
+      <h3>「${badend.title}」</h3>
+      <div class="moneycard loss" style="text-align:left;">
+        <div class="label">손실</div>
+        <div class="amount">- ${money(badend.loss)}</div>
+      </div>
+      <p style="font-size:13.5px; line-height:1.75; text-align:left; opacity:.9;">${badend.story}</p>
+      <p style="font-size:11px; opacity:.6; margin-top:14px;">☠ 실패도감에 등록되었습니다.</p>
+      <button class="reincarnate" id="rein">♻ 체크포인트로 환생한다</button>
+    </div>`;
+  el.querySelector('#rein').onclick = ()=> reincarnate(checkpointId);
+}
+
+/* =========================== 렌더 루프 =========================== */
+function render(){
+  renderHUD();
+  const stage = document.getElementById('stage');
+  const scene = SCENES[STATE.scene] || SCENES.title;
+  scene.render(stage);
+}
+render();
+</script>
+</body>
+</html>
