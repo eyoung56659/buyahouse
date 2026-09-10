@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-<title>HOUSE FILE — GAME 1 + CASE REVIEW</title>
+<title>HOUSE FILE — GAME 1 + CASE REVIEW v10.1</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Gaegu:wght@400;700&family=Gowun+Dodum&family=IBM+Plex+Mono:wght@500;700&display=swap');
 
@@ -117,6 +117,7 @@ h3{font:700 18px 'Gaegu';margin:4px 0 7px}
 @keyframes redFlash{0%{box-shadow:inset 0 0 0 0 rgba(255,60,70,0)}30%{box-shadow:inset 0 0 0 999px rgba(255,60,70,.16)}100%{box-shadow:inset 0 0 0 0 rgba(255,60,70,0)}}
 @keyframes greenFlash{0%{box-shadow:inset 0 0 0 0 rgba(40,200,100,0)}30%{box-shadow:inset 0 0 0 999px rgba(40,200,100,.13)}100%{box-shadow:inset 0 0 0 0 rgba(40,200,100,0)}}
 @keyframes popupIn{to{transform:translate(-50%,-50%) scale(1)}}@keyframes moneyFly{0%{opacity:0;transform:translate(-50%,20px) scale(.7)}20%{opacity:1;transform:translate(-50%,0) scale(1.15)}100%{opacity:0;transform:translate(-50%,-90px) scale(.95)}}@keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}@keyframes scanPulse{from{opacity:.35}to{opacity:1}}
+.choice:focus-visible,.primary:focus-visible,.ghost:focus-visible,.tab:focus-visible,.hbtn:focus-visible,.orderitem:focus-visible{outline:4px solid #111;outline-offset:2px}
 @media(max-width:460px){#stage{padding-left:14px;padding-right:14px}.badend{margin-left:-14px;margin-right:-14px}h1{font-size:27px}.recordgrid{grid-template-columns:1fr}}
 </style>
 </head>
@@ -127,8 +128,9 @@ h3{font:700 18px 'Gaegu';margin:4px 0 7px}
 <script>
 'use strict';
 
-const STORE='HOUSE_FILE_GAME1_V9_REVIEW';
-const HIST='HOUSE_FILE_GAME1_V9_REVIEW_H';
+const SCHEMA_VERSION=10;
+const STORE='HOUSE_FILE_GAME1_V10_REVIEW';
+const HIST='HOUSE_FILE_GAME1_V10_REVIEW_H';
 
 const C={
   startCash:320000000, price:300000000, deposit:30000000, mid:120000000, balance:150000000,
@@ -146,6 +148,8 @@ const LISTINGS={
 };
 
 const BAD={
+ BE00:{title:'등기부도 안 보고 돈부터 보냈습니다',loss:30000000,checkpoint:'parallelFirst',
+  story:'소유자와 권리관계를 확인하기도 전에 계약금 성격의 돈을 먼저 보냈습니다. 이 게임의 실패세계에서는 반환을 둘러싼 분쟁이 생겼습니다.'},
  BE01:{title:'주소 한 칸을 놓쳤습니다',loss:20000000,checkpoint:'contractDraft',
   story:'계약서에는 101동 307호가 적혀 있었지만 실제로 본 집은 101동 703호였습니다. 목적물을 바로잡지 않은 채 계약해 분쟁이 발생했습니다.'},
  BE02:{title:'형이라고 다 대리인은 아니었습니다',loss:25000000,checkpoint:'partyBoss',
@@ -159,7 +163,7 @@ const BAD={
 };
 
 const DEF={
- mode:'game',scene:'title',checkpoint:'title',cash:C.startCash,selectedListing:null,
+ schemaVersion:SCHEMA_VERSION,mode:'game',scene:'title',checkpoint:'title',cash:C.startCash,selectedListing:null,
  badEnds:[],lossLedger:{},reincarnations:0,activeBad:null,
  paid:{deposit:false,mid:false,balance:false},
  regTab:'title',regTicks:{},authority:false,actualDebtChecked:false,plan:false,
@@ -167,13 +171,24 @@ const DEF={
  balanceLocks:{registry:false,mortgage:false,transfer:false,delivery:false},
  clearanceStep:0,registerStep:0,registered:false,auditScanning:null,
  audit:{title:false,owner:false,mortgage:false},
- reviewIndex:0,reviewDone:{},reviewAnswers:{},reviewOrder:[]
+ reviewEntry:'game',reviewIndex:0,reviewDone:{},reviewAnswers:{},reviewAttempts:{},finalAttempts:{},reviewOrder:[]
 };
 
 let S=load(),H=loadH();
 
 function clone(x){return JSON.parse(JSON.stringify(x))}
-function load(){try{return Object.assign(clone(DEF),JSON.parse(localStorage.getItem(STORE)||'{}'))}catch(e){return clone(DEF)}}
+function load(){
+ try{
+   const raw=localStorage.getItem(STORE);
+   if(!raw)return clone(DEF);
+   const data=JSON.parse(raw);
+   if(data.schemaVersion!==SCHEMA_VERSION){
+     localStorage.removeItem(STORE);localStorage.removeItem(HIST);
+     return clone(DEF);
+   }
+   return Object.assign(clone(DEF),data);
+ }catch(e){return clone(DEF)}
+}
 function loadH(){try{return JSON.parse(localStorage.getItem(HIST)||'[]')}catch(e){return[]}}
 function save(){localStorage.setItem(STORE,JSON.stringify(S));localStorage.setItem(HIST,JSON.stringify(H))}
 function money(n){return '₩'+Math.round(n||0).toLocaleString('ko-KR')}
@@ -225,7 +240,7 @@ function phaseInfo(){
 }
 function hud(){
  const h=document.querySelector('#hud'),p=phaseInfo();
- h.innerHTML=`<div class="hud1"><span class="stage">${S.mode==='review'?'PART B · CASE REVIEW':'PART A · BUY THE HOUSE'}</span><span class="cash">${S.mode==='review'?'복습 모드':'전 재산 '+money(S.cash)}</span></div>
+ h.innerHTML=`<div class="hud1"><span class="stage">${S.mode==='review'?'PART B · CASE REVIEW':'PART A · BUY THE HOUSE'}</span><span class="cash">${S.mode==='review'?'복습 모드':'남은 현금 '+money(S.cash)}</span></div>
  <div class="hud2"><span class="pill">${S.mode==='review'?'📚':'🎮'} ${p.label}</span>
  <span class="pill">☠ ${S.badEnds.length}</span><span class="pill">♻ ${S.reincarnations}</span>
  <button class="hbtn" id="back" ${H.length?'':'disabled'}>← 이전</button><button class="hbtn" id="save">💾 저장</button><button class="hbtn" id="reset">↺</button>
@@ -249,8 +264,16 @@ SC.title=el=>{
  <div class="lifeSavings"><div class="years">LIFE SAVINGS · 10 YEARS</div><div class="big">${money(C.startCash)}</div>
  <div class="tiny">집값 ${money(C.price)} · 전재산의 약 94%<br>※ 취득세·중개보수 등 부대비용은 게임 계산에서 제외합니다.</div></div>
  <div class="panel purple"><b>🎮 PART A의 목표</b><div class="body" style="font-size:13px">지금은 법 용어를 외우는 시간이 아닙니다. 거래를 직접 선택하며 위험을 피하세요. <b>게임이 끝난 뒤 PART B에서 방금 한 선택을 법으로 해석</b>합니다.</div></div>
- <button class="primary" id="start">GAME 1 시작</button><button class="ghost" id="preview">선택: 개념 미리보기</button>`;
+ <button class="primary" id="start">🎮 GAME 1 처음부터 시작</button>
+ <button class="ghost" id="reviewDirect">📚 이미 게임한 친구 → CASE REVIEW 바로가기</button>
+ <button class="ghost" id="preview">선택: 개념 미리보기</button>
+ <div class="tiny" style="margin-top:9px;text-align:center">※ CASE REVIEW 바로가기는 이전 버전에서 이미 게임을 끝낸 학생도 사용할 수 있습니다.</div>`;
  el.querySelector('#start').onclick=()=>go('listing');
+ el.querySelector('#reviewDirect').onclick=()=>{
+   S.mode='review';S.reviewEntry='direct';S.reviewIndex=0;S.scene='review';
+   S.reviewDone={};S.reviewAnswers={};S.reviewAttempts={};S.finalAttempts={};S.reviewOrder=[];
+   H=[];save();render();window.scrollTo(0,0);
+ };
  el.querySelector('#preview').onclick=()=>popup('📚','개념 미리보기','부동산 거래에서는 <b>등기부 확인 → 계약 → 대금 지급 → 소유권이전등기</b>의 흐름이 중요합니다.<br><br>자세한 개념은 게임 후 CASE REVIEW에서 정리합니다.')
 };
 
@@ -273,7 +296,7 @@ SC.parallelFirst=el=>{
  <button class="choice" data-v="registry">📜 계약 전에 등기부와 권리관계부터 확인한다<small>내가 본 집·소유자·다른 권리를 먼저 확인한다.</small></button></div>`;
  choiceBind(el,v=>{
    if(v==='registry') miniUnlock('계약 전 확인','집이 마음에 들어도 계약 전에는 부동산의 권리관계를 확인해야 합니다.',()=>go('registry'));
-   else popup('⚠️','위험 신호','돈을 보내기 전에 먼저 계약 대상과 권리관계를 확인하는 편이 안전합니다.',()=>go('registry'),'등기부부터 확인');
+   else bad('BE00');
  });
 };
 
@@ -336,8 +359,8 @@ SC.contractDraft=el=>{
  <div class="stat"><span>잔금</span><b>${money(C.balance)}</b></div>
  <div class="stat"><span>계약서 목적물</span><b style="color:${S.contractFixed?'var(--green)':'var(--red)'}">${S.contractFixed?C.address:C.wrongAddress}</b></div></div>
  <div class="tiny">※ 10%·40%·50%는 이 게임의 계약 조건이며 법정 비율이 아닙니다.</div>
- <div class="choices"><button class="choice" data-v="sign">이 정도면 됐지. 바로 서명</button>
- <button class="choice" data-v="fix">내가 본 집과 계약서 주소·동호수를 대조한다</button></div>`;
+ <div class="choices"><button class="choice" data-v="sign">${S.contractFixed?'✅ 수정된 계약서 확인 완료 → 서명':'이 정도면 됐지. 바로 서명'}</button>
+ <button class="choice" data-v="fix">${S.contractFixed?'🔎 주소·동호수 다시 대조':'내가 본 집과 계약서 주소·동호수를 대조한다'}</button></div>`;
  choiceBind(el,v=>{
    if(v==='fix')popup('🔍','오류 발견!',`실제로 본 집은 <b>${C.address}</b>인데 계약서에는 <b>${C.wrongAddress}</b>가 적혀 있습니다.`,()=>go('contractDraft',()=>{S.contractFixed=true}), '계약서 수정');
    else if(S.contractFixed)go('contractEffect');
@@ -389,13 +412,13 @@ SC.performanceEvent=el=>{
 SC.afterMid=el=>{
  el.innerHTML=head('STAGE 5 · CHECK','중도금 지급 후 계약 해제?','해약금에 의한 일방해제 가능성을 판단합니다.')+
  `<div class="choices"><button class="choice" data-v="easy">계약금만 포기하면 언제든 일방해제 가능</button>
- <button class="choice" data-v="hard">이행 착수 뒤에는 해약금에 의한 일방해제가 원칙적으로 제한된다</button></div>
+ <button class="choice" data-v="hard">당사자 일방이 이행에 착수한 뒤에는 해약금에 의한 해제를 할 수 없다</button></div>
  <div class="tiny">※ 합의해제·채무불이행에 따른 해제 등은 별개의 문제입니다.</div>`;
  choiceBind(el,v=>v==='hard'?miniUnlock('이행 착수','중도금 지급은 이행 착수의 대표적 사례입니다.',()=>go('balanceApproach',()=>setCP('balanceApproach'))):retry(el,'❌ “계약금만 포기하면 언제든 끝”은 아닙니다.','afterMid'));
 };
 
 SC.balanceApproach=el=>{
- el.innerHTML=head('STAGE 6','내일은 잔금 DAY','계약 때 이미 등기부를 확인했습니다. 내일 ${money(C.balance)}을 지급합니다.')+
+ el.innerHTML=head('STAGE 6','내일은 잔금 DAY',`계약 때 이미 등기부를 확인했습니다. 내일 ${money(C.balance)}을 지급합니다.`)+
  `<div class="choices"><button class="choice" data-v="skip">계약 때 봤으니 내일 바로 잔금부터 송금</button>
  <button class="choice" data-v="latest">잔금 직전 최신 등기부를 다시 확인</button></div>`;
  choiceBind(el,v=>v==='latest'?go('newMortgageEvent',()=>{S.newMortgageFound=true}):bad('BE04'));
@@ -512,29 +535,41 @@ SC.bonusAudit=el=>{
 
 SC.gameClear=el=>{
  if(!el.dataset.done){confetti();el.dataset.done='1'}
- const v=LISTINGS[S.selectedListing]||{name:'-'};const avoided=Object.values(BAD).reduce((a,b)=>a+b.loss,0)-Object.values(S.lossLedger).reduce((a,b)=>a+b,0);
+ const v=LISTINGS[S.selectedListing]||{name:'-'};
  el.innerHTML=`<div class="clear"><div class="cup">🏆</div><div class="eyebrow">PART A CLEAR</div><h1>PROPERTY SURVIVED</h1><p class="sub">게임은 끝났습니다. 이제 방금 한 선택의 법적 의미를 해독합니다.</p></div>
  <div class="panel dark"><div class="stat"><span>선택한 집</span><b>${v.name}</b></div><div class="stat"><span>최종 현금</span><b>${money(S.cash)}</b></div><div class="stat"><span>취득 부동산</span><b>${money(C.price)}</b></div><div class="stat"><span>BAD END</span><b>${S.badEnds.length}</b></div><div class="stat"><span>환생</span><b>${S.reincarnations}</b></div></div>
  <div class="panel purple"><h3>📚 다음은 PART B · CASE REVIEW</h3><div class="body" style="font-size:13.5px">게임을 다시 하는 것이 아닙니다. <b>내가 방금 선택한 장면 → 교과서 개념 → 3초 CHECK → 학습지 작성</b> 순서로 6개의 핵심만 정리합니다.</div></div>
+ <div class="tiny" style="text-align:center;margin-top:8px">※ BAD END의 손실액은 평행세계 시뮬레이션이며 실제 남은 현금에는 반영되지 않습니다.</div>
  <button class="primary" id="review">CASE REVIEW 시작</button><button class="ghost" id="gameagain">게임만 다시 하기</button>`;
- el.querySelector('#review').onclick=()=>{S.mode='review';S.reviewIndex=0;S.scene='review';H=[];save();render();window.scrollTo(0,0)};
- el.querySelector('#gameagain').onclick=()=>{const keep={};S=clone(DEF);S.mode='game';save();H=[];render()};
+ el.querySelector('#review').onclick=()=>{
+   S.mode='review';S.reviewEntry='game';S.reviewIndex=0;S.scene='reviewRecord';
+   S.reviewDone={};S.reviewAnswers={};S.reviewAttempts={};S.finalAttempts={};S.reviewOrder=[];
+   H=[];save();render();window.scrollTo(0,0)
+ };
+ el.querySelector('#gameagain').onclick=()=>{S=clone(DEF);S.mode='game';save();H=[];render()};
 };
 
 SC.badend=el=>{
  const b=BAD[S.activeBad];
  el.innerHTML=`<div class="badend"><div class="skull">☠️</div><div class="eyebrow" style="color:#ffb7bc">PARALLEL WORLD</div><h1>BAD END</h1><h2>${b.title}</h2>
  <div class="moneycard loss"><div class="label">게임 시나리오 예상 손실</div><div class="amt">-${money(b.loss)}</div></div>
- <p>${b.story}</p><p class="tiny" style="color:#cdbfc6">※ 손실액은 법정 정액이 아니라 위험을 체감하기 위한 게임 사건 설정입니다.</p>
+ <p>${b.story}</p>
+ <div class="panel" style="background:#2a1b23;border-color:#5d3a47;text-align:left;color:#fff"><b>⚠ 평행세계 손실 기록</b><br><span class="tiny" style="color:#e6d9df">위 손실액은 위험을 체감하기 위한 시나리오 수치이며 <b style="color:#fff">현재 플레이의 남은 현금에서는 차감되지 않습니다.</b></span></div>
+ <p class="tiny" style="color:#cdbfc6">※ 손실액은 법정 정액이 아니라 학습을 위한 게임 사건 설정입니다.</p>
  <button class="retry" id="retry">♻ 체크포인트에서 환생</button></div>`;
  el.querySelector('#retry').onclick=reincarnate;
 };
 
 /* ---------- PART B : CASE REVIEW ---------- */
-const REVIEWS=[
+function riskNote(code,successText,badText,directText){
+ if(S.reviewEntry==='direct')return `<br><br>🎮 ${directText}`;
+ return S.badEnds.includes(code)?`<br><br>☠ ${badText}`:`<br><br>🛡 ${successText}`;
+}
+function getReviews(){
+ return [
  {
   title:'왜 계약 전에 등기부를 볼까?',
-  scene:'게임에서 집을 고른 뒤 “오늘 계약금부터 보내라”는 말을 들었습니다. 당신은 먼저 등기부와 권리관계를 확인했습니다.',
+  scene:`게임에서 집을 고른 뒤 “오늘 계약금부터 보내라”는 말을 들었습니다. ${riskNote('BE00','당신은 돈부터 보내지 않고 등기부와 권리관계를 확인했습니다.','당신은 권리관계를 보기 전에 돈부터 보내는 BAD END를 경험했습니다.','이 장면에서는 돈부터 보내는 선택과 등기부를 먼저 확인하는 선택이 갈렸습니다.')}`,
   teach:`부동산은 건물 겉모습만 보고는 <b>누가 소유자인지, 어떤 권리가 설정되어 있는지</b> 알기 어렵습니다. 그래서 부동산의 권리관계를 등기에 기록하여 외부에 알립니다.<br><br>매매계약 전에는 적어도 <b>내가 살 부동산이 맞는지, 거래 상대방과 소유자가 일치하는지, 다른 권리가 있는지</b> 확인해야 합니다.`,
   remember:'매물 선택 → 바로 송금 X / 등기부 확인 → 계약 O',
   q:'부동산 매매계약 전에 등기부를 확인하는 가장 적절한 이유는?',
@@ -543,16 +578,16 @@ const REVIEWS=[
    ['부동산의 소유자와 권리관계를 확인하기 위해',true],
    ['계약금 비율이 법에 맞는지 확인하기 위해',false]
   ],
-  sheet:'학습지 1쪽 「매매 절차」에서 ① 매물 선택 → ② 계약 전 등기부 확인 부분을 채우세요.'
+  sheet:'학습지 1쪽 「CASE REVIEW 1. 왜 계약 전에 등기부를 볼까?」를 채우고, 맨 위 7단계에서 ①~②를 확인하세요.'
  },
  {
   title:'표제부·갑구·을구는 무엇을 볼까?',
-  scene:`게임에서 <b>표제부</b>로 주소·동호수, <b>갑구</b>로 현재 소유자, <b>을구</b>로 A은행 근저당권을 확인했습니다.${S.badEnds.includes('BE02')?'<br><br>☠ 당신은 대리권 미확인 BAD END도 경험했습니다.':'<br><br>✅ 당신은 소유자와 거래 상대방의 차이를 확인했습니다.'}`,
+  scene:`게임에서 <b>표제부</b>로 주소·동호수, <b>갑구</b>로 현재 소유자, <b>을구</b>로 A은행 근저당권을 확인했습니다.${riskNote('BE02','소유자와 거래 상대방의 차이를 확인했습니다.','대리권 미확인 BAD END도 경험했습니다.','게임에서는 등기부상 소유자와 계약하러 나온 사람이 달라 대리권 확인이 필요했습니다.')}`,
   teach:`<b>표제부</b>에는 소재지·면적·용도·구조 등 부동산 자체의 정보가 기록됩니다.<br><b>갑구</b>에는 소유권에 관한 사항이 기록됩니다.<br><b>을구</b>에는 저당권·전세권 등 소유권 이외의 권리가 기록됩니다.<br><br><span class="tag">PLUS</span>근저당권의 <b>채권최고액은 실제 남은 빚과 항상 같은 것은 아닙니다.</b> 다만 이 부분은 실전 확장이고, 교과서 핵심은 “을구에서 근저당 등 부담을 확인한다”입니다.`,
   remember:'표제부 = 어떤 집? / 갑구 = 누구 집? / 을구 = 다른 권리?',
   q:'은행의 근저당권을 확인하려면 어디를 봐야 할까?',
   options:[['표제부',false],['갑구',false],['을구',true]],
-  sheet:'학습지 2쪽 「등기부는 세 칸만 읽자」의 표제부·갑구·을구 빈칸을 채우세요.'
+  sheet:'학습지 1쪽 「CASE REVIEW 2. 표제부·갑구·을구는 무엇을 볼까?」를 채우세요.'
  },
  {
   title:'매매계약을 쓰면 바로 내 집일까?',
@@ -565,20 +600,20 @@ const REVIEWS=[
    ['매도인·매수인의 의무는 생기지만 부동산 소유권 취득은 아직이다',true],
    ['매수인에게 아무 권리도 생기지 않는다',false]
   ],
-  sheet:'학습지 1쪽 「매매계약」에서 매도인·매수인의 의무를 채우세요.'
+  sheet:'학습지 1쪽 「CASE REVIEW 3. 매매계약을 쓰면 바로 내 집일까?」를 채우세요.'
  },
  {
   title:'계약금과 중도금은 왜 구분했을까?',
   scene:'게임에서 계약금 지급 직후와 중도금 지급 이후의 해제 가능성을 다르게 판단했습니다.',
-  teach:`계약금이 해약금의 성격을 가지는 일반적인 경우, <b>당사자 일방이 이행에 착수하기 전</b>까지는 매수인은 계약금을 포기하고, 매도인은 계약금의 배액을 상환하여 계약을 해제할 수 있습니다.<br><br><b>중도금 지급은 이행에 착수한 대표적인 경우</b>입니다. 따라서 중도금 지급 이후에는 “계약금만 포기하면 언제든 일방해제”라고 단순하게 생각하면 안 됩니다.<br><span class="tiny">※ 합의해제·채무불이행에 따른 해제 등은 별개입니다.</span>`,
+  teach:`계약금이 해약금의 성격을 가지는 일반적인 경우, <b>당사자 일방이 이행에 착수하기 전</b>까지는 매수인은 계약금을 포기하고, 매도인은 계약금의 배액을 상환하여 계약을 해제할 수 있습니다.<br><br><b>중도금 지급은 이행에 착수한 대표적인 경우</b>입니다. 따라서 당사자 일방이 이행에 착수한 뒤에는 해약금에 의한 해제를 할 수 없습니다.<br><span class="tiny">※ 합의해제·채무불이행에 따른 해제 등은 별개입니다.</span>`,
   remember:'핵심 기준 = 중도금이라는 단어 자체보다 “이행에 착수했는가?”',
   q:'중도금 지급 후 계약금만 포기하면 언제나 일방해제가 가능하다.',
   options:[['O',false],['X',true]],
-  sheet:'학습지 1쪽 「계약금은 이것만 기억!」에서 이행 착수 전/후 부분을 채우세요.'
+  sheet:'학습지 2쪽 「CASE REVIEW 4. 계약금과 중도금은 왜 구분할까?」를 채우세요.'
  },
  {
   title:'왜 잔금 전에 등기부를 또 봤을까?',
-  scene:`게임에서는 계약 당시 없던 <b>${C.newMortgageBank} 근저당권</b>이 잔금 직전 새로 발견되었습니다.${S.badEnds.includes('BE04')?'<br><br>☠ 최신 등기부를 건너뛰는 BAD END를 경험했습니다.':'<br><br>✅ 최신 등기부를 다시 봐서 새 권리를 발견했습니다.'}`,
+  scene:`게임에서는 계약 당시 없던 <b>${C.newMortgageBank} 근저당권</b>이 잔금 직전 새로 발견되었습니다.${riskNote('BE04','최신 등기부를 다시 봐서 새 권리를 발견했습니다.','최신 등기부를 건너뛰는 BAD END를 경험했습니다.','게임에서는 잔금 전에 최신 등기부를 다시 보느냐가 중요한 갈림길이었습니다.')}`,
   teach:`계약을 체결한 뒤 잔금을 지급하기 전까지도 <b>새로운 권리가 설정되거나 권리관계가 달라질 수 있습니다.</b><br><br>그래서 잔금 전에는 최신 등기부를 다시 확인하고, 약정한 근저당 처리·소유권 이전 서류·부동산 인도 등이 제대로 이루어지는지 확인하면서 거래를 마무리하는 것이 안전합니다.`,
   remember:'계약 때 봤어도 잔금 전 최신 등기부 한 번 더!',
   q:'잔금 전 최신 등기부를 다시 확인하는 이유는?',
@@ -587,11 +622,11 @@ const REVIEWS=[
    ['등기부는 하루마다 자동으로 효력을 잃기 때문에',false],
    ['잔금은 반드시 은행에서만 지급해야 하기 때문에',false]
   ],
-  sheet:'학습지 1쪽 「잔금 전·인수」와 마지막 체크리스트의 「잔금 전」 부분을 채우세요.'
+  sheet:'학습지 2쪽 「CASE REVIEW 5. 왜 잔금 전에 등기부를 또 볼까?」와 FINAL의 「잔금 전」을 채우세요.'
  },
  {
   title:'언제 진짜 내 집이 되었을까?',
-  scene:`게임에서 계약·대금 지급·부동산 인도까지 끝났는데도 갑구의 소유자는 매도인이었습니다. 이후 소유권이전등기를 완료하자 갑구가 <b>PLAYER</b>로 바뀌었습니다.${S.badEnds.includes('BE05')?'<br><br>☠ 등기를 미룬 BAD END도 경험했습니다.':''}`,
+  scene:`게임에서 계약·대금 지급·부동산 인도까지 끝났는데도 갑구의 소유자는 매도인이었습니다. 이후 소유권이전등기를 완료하자 갑구가 <b>PLAYER</b>로 바뀌었습니다.${riskNote('BE05','소유권이전등기를 바로 진행했습니다.','등기를 미룬 BAD END도 경험했습니다.','게임에서는 잔금 지급 뒤 소유권이전등기를 바로 할지 미룰지가 마지막 갈림길이었습니다.')}`,
   teach:`민법 제186조는 <b>부동산에 관한 법률행위로 인한 물권의 득실변경은 등기하여야 효력이 생긴다</b>고 정합니다.<br><br>따라서 게임과 교과서의 매매 사례에서 매수인이 부동산 소유권을 취득하는 시점은 <b>소유권이전등기를 완료한 때</b>입니다.<br><br>등기 신청 뒤에는 재발급 등기부에서 <b>표제부·갑구·을구 결과를 다시 확인</b>합니다.`,
   remember:'계약 ≠ 소유권 / 잔금 지급 ≠ 소유권 / 소유권이전등기 완료 = 진짜 내 집',
   q:'게임과 교과서 사례에서 부동산 소유권을 취득하는 시점은?',
@@ -600,9 +635,10 @@ const REVIEWS=[
    ['잔금을 지급한 때',false],
    ['소유권이전등기를 완료한 때',true]
   ],
-  sheet:'학습지 1쪽 「소유권 이전」과 2쪽 마지막 한 문장 정리를 채우세요.'
+  sheet:'학습지 2쪽 「CASE REVIEW 6. 언제 진짜 내 집이 될까?」와 마지막 한 문장 정리를 채우세요.'
  }
-];
+ ];
+}
 
 function reviewShell(r,i){
  return `<div class="reviewTop"><div class="reviewNo">CASE REVIEW ${i+1} / 6</div><div class="reviewTitle">${r.title}</div><div class="tiny">게임 장면 → 법으로 해석 → 3초 CHECK → 학습지</div></div>
@@ -611,22 +647,28 @@ function reviewShell(r,i){
  <div class="reviewRemember">⚡ 이것만 기억!<br>${r.remember}</div>
  <div class="reviewQuiz"><div class="q">3초 CHECK</div><div class="body" style="font-size:13.5px">${r.q}</div>
  <div class="choices">${r.options.map((o,j)=>`<button class="choice rq" data-i="${j}">${o[0]}</button>`).join('')}</div>
- <div class="feedback" id="rfb">${S.reviewDone[i]?'✅ 이미 확인한 개념입니다.':'정답을 확인하면 학습지 안내가 열립니다.'}</div></div>
+ <div class="feedback" id="rfb">${S.reviewDone[i]?`✅ 확인 완료 · ${S.reviewAttempts[i]||1}회 시도`:'정답을 확인하면 학습지 안내가 열립니다.'}</div></div>
  <div class="sheetCue" id="sheet" style="${S.reviewDone[i]?'':'display:none'}"><b>✎ 지금 학습지!</b><br>${r.sheet}</div>
  <div class="reviewNav"><button class="ghost" id="prev">${i===0?'게임 기록 보기':'← 이전 REVIEW'}</button><button class="primary" id="next" ${S.reviewDone[i]?'':'disabled'}>${i===5?'FINAL CHECK':'다음 REVIEW →'}</button></div>`;
 }
 
 SC.review=el=>{
- S.mode='review';const i=S.reviewIndex,r=REVIEWS[i];
+ S.mode='review';const i=S.reviewIndex,reviews=getReviews(),r=reviews[i];
  el.innerHTML=reviewShell(r,i);
  el.querySelectorAll('.rq').forEach(b=>b.onclick=()=>{
    const o=r.options[Number(b.dataset.i)],fb=el.querySelector('#rfb');
+   if(S.reviewDone[i]){
+     fb.className='feedback ok';fb.textContent=`✅ 이미 정답 확인 완료 · ${S.reviewAttempts[i]||1}회 시도`;
+     return;
+   }
+   S.reviewAttempts[i]=(S.reviewAttempts[i]||0)+1;
    if(o[1]){
      S.reviewDone[i]=true;S.reviewAnswers[i]=Number(b.dataset.i);save();
-     fb.className='feedback ok';fb.textContent='✅ 맞아요. 이제 학습지의 해당 부분을 채우세요.';
+     fb.className='feedback ok';fb.textContent=`✅ 정답 · ${S.reviewAttempts[i]||1}회 시도. 이제 학습지의 해당 부분을 채우세요.`;
      el.querySelector('#sheet').style.display='block';el.querySelector('#next').disabled=false;
    }else{
-     fb.className='feedback no';fb.textContent='❌ 다시 생각해 보세요. 바로 위 “교과서로 보면”에서 핵심 문장을 찾아보세요.';
+     save();
+     fb.className='feedback no';fb.textContent=`❌ ${S.reviewAttempts[i]}회째 시도. 바로 위 “교과서로 보면”에서 핵심 문장을 찾아보세요.`;
    }
  });
  el.querySelector('#prev').onclick=()=>{
@@ -642,12 +684,15 @@ SC.review=el=>{
 SC.reviewRecord=el=>{
  const v=LISTINGS[S.selectedListing]||{name:'-'};
  const dangerRows=[
-  ['계약서 주소 오류','BE01'],['대리권 미확인','BE02'],['근저당 처리 무시','BE03'],['잔금 전 재확인 생략','BE04'],['등기 지연','BE05']
+  ['권리관계 확인 전 선송금','BE00'],['계약서 주소 오류','BE01'],['대리권 미확인','BE02'],['근저당 처리 무시','BE03'],['잔금 전 재확인 생략','BE04'],['등기 지연','BE05']
  ];
- el.innerHTML=head('PART B','내 플레이 기록','CASE REVIEW는 방금 한 플레이를 법률 언어로 번역하는 단계입니다.')+
- `<div class="panel dark"><div class="stat"><span>선택 매물</span><b>${v.name}</b></div><div class="stat"><span>BAD END</span><b>${S.badEnds.length}</b></div><div class="stat"><span>환생</span><b>${S.reincarnations}</b></div></div>
- <div class="recordgrid">${dangerRows.map(x=>`<div class="record"><b>${S.badEnds.includes(x[1])?'☠ 경험한 위험':'🛡 피한 위험'}</b><span>${x[0]}</span></div>`).join('')}</div>
- <div class="narrator">BAD END를 보지 않았어도 괜찮습니다. REVIEW에서는 <b>성공한 선택과 실패세계 모두의 의미</b>를 확인합니다.</div>
+ const direct=S.reviewEntry==='direct';
+ el.innerHTML=head('PART B',direct?'CASE REVIEW 바로가기':'내 플레이 기록',direct?'이미 게임을 한 친구는 기록 없이도 핵심 장면을 바로 복습할 수 있습니다.':'CASE REVIEW는 방금 한 플레이를 법률 언어로 번역하는 단계입니다.')+
+ `${direct
+   ?`<div class="panel purple"><b>📚 직접 복습 모드</b><div class="body" style="font-size:13px">이 브라우저에 이번 게임 기록이 없어도 괜찮습니다. 각 REVIEW에서 <b>게임의 핵심 장면을 다시 제시</b>합니다.</div></div>`
+   :`<div class="panel dark"><div class="stat"><span>선택 매물</span><b>${v.name}</b></div><div class="stat"><span>BAD END</span><b>${S.badEnds.length}</b></div><div class="stat"><span>환생</span><b>${S.reincarnations}</b></div></div>
+     <div class="recordgrid">${dangerRows.map(x=>`<div class="record"><b>${S.badEnds.includes(x[1])?'☠ 경험한 위험':'🛡 피한 위험'}</b><span>${x[0]}</span></div>`).join('')}</div>`}
+ <div class="narrator">${direct?'게임을 이미 했다면 이제 <b>왜 그 선택이 중요했는지</b> 법 개념으로 정리합니다.':'BAD END를 보지 않았어도 괜찮습니다. REVIEW에서는 <b>성공한 선택과 실패세계 모두의 의미</b>를 확인합니다.'}</div>
  <button class="primary" id="go">CASE REVIEW 1 시작</button>`;
  el.querySelector('#go').onclick=()=>{S.reviewIndex=0;S.scene='review';save();render()}
 };
@@ -688,9 +733,16 @@ SC.reviewFinalQuiz=el=>{
  el.querySelectorAll('.fq').forEach(b=>b.onclick=()=>{
    const i=Number(b.dataset.q),correct=b.dataset.v===qs[i].a;
    if(!S.reviewAnswers.final)S.reviewAnswers.final={};
+   if(S.reviewAnswers.final[i]===true){
+     const f=el.querySelector('#f'+i);
+     f.className='feedback ok';f.textContent=`✅ 이미 정답 확인 완료 · ${S.finalAttempts[i]||1}회 시도`;
+     return;
+   }
+   S.finalAttempts[i]=(S.finalAttempts[i]||0)+1;
    S.reviewAnswers.final[i]=correct;save();
    const f=el.querySelector('#f'+i);
-   f.className='feedback '+(correct?'ok':'no');f.textContent=correct?'✅ 정답':'❌ 바로 위 REVIEW 내용을 다시 떠올려 보세요.';
+   f.className='feedback '+(correct?'ok':'no');
+   f.textContent=correct?`✅ 정답 · ${S.finalAttempts[i]||1}회 시도`:`❌ ${S.finalAttempts[i]}회째 시도 · 관련 REVIEW 내용을 다시 떠올려 보세요.`;
    if([0,1,2].every(j=>S.reviewAnswers.final[j]===true))el.querySelector('#finish').disabled=false
  });
  el.querySelector('#finish').onclick=()=>go('reviewComplete',null,{skip:true});
@@ -698,6 +750,9 @@ SC.reviewFinalQuiz=el=>{
 
 SC.reviewComplete=el=>{
  confetti();
+ const reviews=getReviews();
+ const weak=reviews.map((r,i)=>({title:r.title,tries:S.reviewAttempts[i]||0})).filter(x=>x.tries>=2);
+ const attemptRows=reviews.map((r,i)=>`<div class="stat"><span>REVIEW ${i+1} · ${r.title}</span><b>${S.reviewAttempts[i]||0}회</b></div>`).join('');
  el.innerHTML=`<div class="clear"><div class="cup">🎓</div><div class="eyebrow">PART B CLEAR</div><h1>CASE REVIEW COMPLETE</h1>
  <p class="sub">게임에서 한 행동이 이제 법률 개념으로 연결되었습니다.</p></div>
  <div class="panel good"><h3>🏠 부동산 매매 핵심</h3>
@@ -706,6 +761,8 @@ SC.reviewComplete=el=>{
  <div class="body" style="font-size:13.5px">① <b>표제부</b>는 부동산 자체, <b>갑구</b>는 소유권, <b>을구</b>는 저당권 등 다른 권리를 확인한다.<br><br>
  ② 계약 후에도 권리관계가 달라질 수 있으므로 <b>잔금 전 최신 등기부</b>를 다시 확인한다.<br><br>
  ③ 부동산은 매매계약만으로 소유권을 취득하는 것이 아니라 <b>소유권이전등기를 완료해야</b> 한다.</div></div>
+ <div class="panel blue"><h3>📊 나의 CASE REVIEW 기록</h3>${attemptRows}
+ ${weak.length?`<div class="narrator bad"><b>⚠ 한 번 더 볼 개념</b><br>${weak.map(x=>`• ${x.title} (${x.tries}회 시도)`).join('<br>')}</div>`:`<div class="narrator good"><b>✅ 모든 REVIEW를 1회 시도 안에 해결했습니다.</b></div>`}</div>
  <div class="sheetCue"><b>✎ 학습지 마무리</b><br>남아 있는 빈칸과 마지막 3문제를 완성하고, 매매 절차 6~7단계를 소리 내어 한 번 읽어 보세요.</div>
  <button class="primary" id="game">게임 첫 화면으로</button><button class="ghost" id="review">CASE REVIEW 다시 보기</button>`;
  el.querySelector('#game').onclick=()=>{S.mode='game';S.scene='title';H=[];save();render()};
